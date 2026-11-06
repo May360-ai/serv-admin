@@ -28,7 +28,7 @@ const nuevoPedidoSchema = z.object({
   referencia: z.string().optional(),
   latitud: z.number().optional(),
   longitud: z.number().optional(),
-  monto_total: z.number({ invalid_type_error: 'Monto inválido' }).positive('Monto debe ser positivo'),
+  monto_total: z.number({ error: 'Monto inválido' }).positive('Monto debe ser positivo'),
   notas: z.string().optional(),
 });
 

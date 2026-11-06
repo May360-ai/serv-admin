@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatHora } from '@/lib/utils';
-import { useAgregarPedidoARuta } from '@/hooks/use-rutas';
+import { useAgregarPedidoARuta } from '@/features/despacho/use-rutas';
 
 interface PedidoLibreItemProps {
   pedido: Pedido;

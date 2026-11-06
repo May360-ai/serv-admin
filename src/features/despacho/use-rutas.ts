@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { rutasService } from '@/services/rutas.service';
+import { rutasService } from '@/features/despacho/rutas.service';
 import type {
   FiltrosRutas,
   ArmarRutasRequest,

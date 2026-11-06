@@ -7,6 +7,7 @@ const PUBLIC_PREFIXES = ['/login', '/registro', '/unauthorized'];
 
 // Rutas con acceso restringido estricto por rol
 const ROLE_REQUIRED_ROUTES: { prefix: string; roles: Role[] }[] = [
+  { prefix: '/entregas', roles: ['repartidor'] },
   { prefix: '/admin', roles: ['admin', 'administrador'] },
   { prefix: '/tienda', roles: ['proveedor'] },
   { prefix: '/catalogo', roles: ['cliente', 'admin', 'administrador'] },
@@ -15,35 +16,14 @@ const ROLE_REQUIRED_ROUTES: { prefix: string; roles: Role[] }[] = [
   { prefix: '/checkout', roles: ['cliente'] },
 ];
 
-/**
- * Decodifica de forma segura el payload del JWT en el Edge runtime sin dependencias externas.
- */
-function decodeJwtPayload(token: string): { rol?: Role; rol_nombre?: Role } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload) as { rol?: Role; rol_nombre?: Role };
-  } catch {
-    return null;
-  }
-}
-
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // 1. Ignorar assets estáticos, favicon y Next.js internals
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname.includes('.')
+    pathname === '/favicon.ico'
   ) {
     return NextResponse.next();
   }
@@ -64,10 +44,19 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 4. Extraer el rol del usuario (desde la cookie de rol o decodificando el JWT)
-  const roleCookie = request.cookies.get('serv_role')?.value as Role | undefined;
-  const jwtPayload = decodeJwtPayload(tokenCookie);
-  const userRole = roleCookie ?? jwtPayload?.rol_nombre ?? jwtPayload?.rol;
+  // El rol solo se acepta después de verificar el JWT en la API.
+  let userRole: Role | undefined;
+  try {
+    const baseUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    const session = await fetch(new URL('/api/auth/sesion', baseUrl), {
+      headers: { Authorization: `Bearer ${tokenCookie}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (session.ok) userRole = (await session.json()).rol_nombre;
+  } catch {
+    userRole = undefined;
+  }
 
   if (!userRole) {
     // Token malformado o inválido: forzar nuevo login
@@ -87,6 +76,7 @@ export function middleware(request: NextRequest): NextResponse {
     if (userRole === 'proveedor') {
       return NextResponse.redirect(new URL('/tienda/rutas', request.url));
     }
+    if (userRole === 'repartidor') return NextResponse.redirect(new URL('/entregas', request.url));
     if (userRole === 'cliente') {
       return NextResponse.redirect(new URL('/catalogo', request.url));
     }

@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Apariencia } from '@/components/layout/apariencia';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Truck, Mail, Lock } from 'lucide-react';
@@ -35,7 +36,7 @@ export default function LoginPage() {
 
   const setDemoCredentials = (email: string) => {
     setValue('email', email, { shouldValidate: true });
-    setValue('password', 'password123', { shouldValidate: true });
+    setValue('password', process.env.NEXT_PUBLIC_SERV_DEMO_PASSWORD ?? '', { shouldValidate: true });
   };
 
   const onSubmit = async (data: LoginFormData) => {
@@ -51,18 +52,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-16">
+      <div className="absolute right-4 top-4"><Apariencia /></div>
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg mb-4">
-            <Truck className="h-8 w-8 text-white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mb-4">
+            <Truck className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">SERV</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestión de Entregas y Rutas</p>
         </div>
 
-        <Card className="shadow-xl border-0">
+        <Card className="border border-border shadow-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">Iniciar Sesión</CardTitle>
             <CardDescription>Ingresá tus credenciales para acceder al panel</CardDescription>
@@ -126,42 +128,43 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Accesos rápidos de prueba por rol */}
+            {process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SERV_DEMO_PASSWORD && (
             <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center mb-2.5">
-                Cuentas Demo Sembradas
+                Probar con una cuenta demo
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setDemoCredentials('admin@serv.com')}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100 transition-colors text-center"
+                  className="px-3 py-2 text-sm rounded-md border border-border text-left hover:bg-accent"
                 >
-                  👑 Admin Global
+                  Administración
                 </button>
                 <button
                   type="button"
                   onClick={() => setDemoCredentials('tienda@serv.com')}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100 transition-colors text-center"
+                  className="px-3 py-2 text-sm rounded-md border border-border text-left hover:bg-accent"
                 >
-                  🏪 Tienda (Carlos)
+                  Tienda · Carlos
                 </button>
                 <button
                   type="button"
                   onClick={() => setDemoCredentials('cliente@serv.com')}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-green-200 bg-green-50 text-green-900 hover:bg-green-100 transition-colors text-center"
+                  className="px-3 py-2 text-sm rounded-md border border-border text-left hover:bg-accent"
                 >
-                  🛍️ Cliente (Lucía)
+                  Cliente · Lucía
                 </button>
                 <button
                   type="button"
                   onClick={() => setDemoCredentials('repartidor@serv.com')}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 transition-colors text-center"
+                  className="px-3 py-2 text-sm rounded-md border border-border text-left hover:bg-accent"
                 >
-                  🛵 Repartidor (Martín)
+                  Repartidor · Martín
                 </button>
               </div>
             </div>
+            )}
           </CardContent>
         </Card>
 

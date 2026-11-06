@@ -7,6 +7,11 @@ import type {
   PaginatedResponse,
 } from '@/types';
 
+const diaEntrega = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' });
+const horaEntrega = new Intl.DateTimeFormat('es-EC', {
+  timeZone: 'America/Guayaquil', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+
 // Normaliza el formato de un pedido devuelto por la API
 function normalizarPedido(p: unknown): Pedido {
   const item = p as Record<string, unknown>;
@@ -20,19 +25,22 @@ function normalizarPedido(p: unknown): Pedido {
   const cliente_telefono = (item.cliente_telefono || usr.telefono || '1122334455') as string;
   const estado = ((typeof item.estado === 'string' ? item.estado : est.nombre) || 'pendiente') as Pedido['estado'];
   const fecha_registro = (item.fecha_registro || item.fecha_creacion || new Date().toISOString()) as string;
-  const fecha_entrega = (item.fecha_entrega || item.fecha_programada ? String(item.fecha_programada).split('T')[0] : new Date().toISOString().split('T')[0]) as string;
+  const programada = item.fecha_programada ? new Date(String(item.fecha_programada)) : null;
+  const fecha_entrega = String(item.fecha_entrega ?? (programada ? diaEntrega.format(programada) : ''));
+  const hora = programada ? horaEntrega.format(programada) : '';
   const monto_total = Number(item.monto_total ?? item.total ?? 0);
 
   return {
     id,
     numero_pedido,
+    ruta_id: item.ruta_id ? String(item.ruta_id) : undefined,
     cliente_id: item.cliente_id ? String(item.cliente_id) : (usr.id ? String(usr.id) : undefined),
     cliente_nombre,
     cliente_telefono,
     estado,
     fecha_registro,
     fecha_entrega,
-    ventana_horaria: (item.ventana_horaria as Pedido['ventana_horaria']) || { desde: '09:00', hasta: '13:00' },
+    ventana_horaria: (item.ventana_horaria as Pedido['ventana_horaria']) || { desde: hora, hasta: hora },
     direccion: {
       id: String(dir.id || '1'),
       calle: (dir.direccion || dir.calle || 'Calle Principal') as string,
@@ -43,12 +51,12 @@ function normalizarPedido(p: unknown): Pedido {
       latitud: Number(dir.latitud || -34.6037),
       longitud: Number(dir.longitud || -58.3816),
     },
-    zona_id: String(item.zona_id || '1'),
+    zona_id: String(item.zona_id || dir.zona_id || ''),
     tienda_id: String(item.proveedor_id || item.tienda_id || '1'),
     notas: (item.notas || item.instrucciones_especiales || '') as string,
     monto_total,
     pago_confirmado: Boolean(item.pago_confirmado || (item.pagos && (item.pagos as Record<string, unknown>).estado === 'completado')),
-    ultimo_minuto: Boolean(item.ultimo_minuto),
+    ultimo_minuto: Boolean(item.ultimo_minuto ?? (programada && diaEntrega.format(new Date(fecha_registro)) === fecha_entrega)),
     created_at: fecha_registro,
     updated_at: fecha_registro,
   };

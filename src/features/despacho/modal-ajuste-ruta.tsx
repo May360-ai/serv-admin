@@ -5,8 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ruta, Repartidor } from '@/types';
-import { rutasService } from '@/services/rutas.service';
-import { RUTAS_QUERY_KEY } from '@/hooks/use-rutas';
+import { rutasService } from '@/features/despacho/rutas.service';
+import { RUTAS_QUERY_KEY } from '@/features/despacho/use-rutas';
 import {
   Dialog,
   DialogContent,

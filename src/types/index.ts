@@ -95,7 +95,7 @@ export interface Ruta {
   repartidor?: Repartidor;
   pedidos: Pedido[];
   capacidad_maxima: number; // por defecto 4
-  estado: 'armando' | 'lista' | 'en_camino' | 'completada';
+  estado: 'armando' | 'lista' | 'en_camino' | 'en_ruta' | 'completada' | 'cerrada';
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +118,9 @@ export interface Tienda {
   logo_url?: string;
   direccion?: string;
   activa: boolean;
+  descripcion?: string | null;
+  direcciones?: { direccion: string } | null;
+  horarios_atencion?: { hora_apertura: string; hora_cierre: string }[];
 }
 
 export interface HorarioTienda {
@@ -163,6 +166,7 @@ export interface RegistroRequest {
 }
 
 export interface CrearPedidoRequest {
+  tienda_id?: string;
   cliente_nombre: string;
   cliente_telefono: string;
   fecha_entrega: string;
@@ -253,6 +257,7 @@ export interface SocketEventMap {
   mensaje_recibido: MensajeChat;
   nuevo_mensaje: unknown;
   estado_pedido_actualizado: { pedido_id: string; estado: EstadoPedido };
+  pedido_registrado: { pedido_id: string };
   ruta_actualizada: Ruta;
   repartidor_estado_actualizado: { repartidor_id: string; estado: EstadoRepartidor };
 }

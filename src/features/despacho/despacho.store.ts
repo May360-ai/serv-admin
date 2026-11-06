@@ -7,12 +7,12 @@ interface DespachoState {
   setZona: (zona_id: string | null) => void;
 }
 
-function getFechaHoy(): string {
-  return new Date().toISOString().split('T')[0];
+export function getFechaHoy(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(new Date());
 }
 
 export const useDespachoStore = create<DespachoState>((set) => ({
-  fechaSeleccionada: getFechaHoy(),
+  fechaSeleccionada: '',
   zonaSeleccionada: null,
   setFecha: (fecha) => set({ fechaSeleccionada: fecha }),
   setZona: (zona_id) => set({ zonaSeleccionada: zona_id }),

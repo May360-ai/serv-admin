@@ -45,10 +45,10 @@ const nuevoItemSchema = z.object({
   descripcion: z.string().optional(),
   categoria_id: z.string().min(1, 'Debes seleccionar una categoría'),
   precio: z
-    .number({ invalid_type_error: 'Ingresá un precio válido' })
+    .number({ error: 'Ingresá un precio válido' })
     .positive('El precio debe ser mayor a 0'),
   inventario_stock: z
-    .number({ invalid_type_error: 'Ingresá una cantidad de stock válida' })
+    .number({ error: 'Ingresá una cantidad de stock válida' })
     .int()
     .min(0, 'El stock no puede ser negativo'),
 });

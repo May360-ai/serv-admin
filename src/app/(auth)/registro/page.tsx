@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Apariencia } from '@/components/layout/apariencia';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Truck, Mail, Lock, User, Store } from 'lucide-react';
@@ -45,7 +46,7 @@ export default function RegistroPage() {
         email: data.email,
         password: data.password,
         nombre_comercial: data.nombre_comercial,
-        rol: 'tienda',
+        rol: 'proveedor',
       });
       setAuth(response.usuario, response.token);
       toast.success('¡Cuenta creada exitosamente!');
@@ -57,17 +58,18 @@ export default function RegistroPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-16">
+      <div className="absolute right-4 top-4"><Apariencia /></div>
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg mb-4">
-            <Truck className="h-8 w-8 text-white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mb-4">
+            <Truck className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">SERV</h1>
           <p className="text-muted-foreground text-sm mt-1">Registrá tu tienda</p>
         </div>
 
-        <Card className="shadow-xl border-0">
+        <Card className="border border-border shadow-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">Crear cuenta</CardTitle>
             <CardDescription>Completá el formulario para registrar tu tienda</CardDescription>

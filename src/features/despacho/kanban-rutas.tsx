@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn, formatHora, getEstadoLabel, getEstadoColor, calcularPorcentajeCapacidad } from '@/lib/utils';
-import { useRemoverPedidoDeRuta, useTransferirPedido } from '@/hooks/use-rutas';
+import { useRemoverPedidoDeRuta, useTransferirPedido } from '@/features/despacho/use-rutas';
 
 interface PedidoItemRutaProps {
   pedido: Pedido;
@@ -315,7 +315,7 @@ export function KanbanRutas({ rutas, onReordenar, onAjustar }: KanbanRutasProps)
         <Truck className="h-16 w-16 text-muted-foreground/30 mb-4" />
         <h3 className="text-lg font-semibold text-muted-foreground">Sin rutas para este día</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Hacé clic en &quot;Disparar Armado Automático&quot; o creá rutas manualmente.
+          Usa «Armar rutas» para distribuir los pedidos pendientes.
         </p>
       </div>
     );

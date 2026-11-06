@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import { useSocket } from '@/hooks/use-socket';
+import { Apariencia } from '@/components/layout/apariencia';
 import { Sidebar } from '@/components/layout/sidebar';
 import type { EstadoPedido } from '@/types';
 
@@ -14,6 +16,7 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const usuario = useAuthStore((s) => s.usuario);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,7 +28,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     setIsMounted(true);
     setFechaActual(
-      new Date().toLocaleDateString('es-AR', {
+      new Date().toLocaleDateString('es-EC', {
+        timeZone: 'America/Guayaquil',
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -47,9 +51,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       toast.info(`Actualización: Pedido #${data.pedido_id.slice(-6)} está ${data.estado}`);
     };
 
+    const actualizarDespacho = () => {
+      void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      void queryClient.invalidateQueries({ queryKey: ['rutas'] });
+    };
+    on('pedido_registrado', actualizarDespacho);
+    on('ruta_actualizada', actualizarDespacho);
     on('estado_pedido_actualizado', handleEstadoUpdate);
-    return () => off('estado_pedido_actualizado', handleEstadoUpdate);
-  }, [usuario, on, off]);
+    return () => {
+      off('pedido_registrado', actualizarDespacho);
+      off('ruta_actualizada', actualizarDespacho);
+      off('estado_pedido_actualizado', handleEstadoUpdate);
+    };
+  }, [usuario, on, off, queryClient]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -79,6 +93,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="text-sm text-muted-foreground capitalize">
             {fechaActual}
           </div>
+          <Apariencia />
         </header>
 
         {/* Content */}

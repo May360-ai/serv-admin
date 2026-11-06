@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export function formatFecha(fecha: string): string {
-  return new Intl.DateTimeFormat('es-AR', {
+  return new Intl.DateTimeFormat('es-EC', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -19,9 +19,9 @@ export function formatHora(hora: string): string {
 }
 
 export function formatMoneda(monto: number): string {
-  return new Intl.NumberFormat('es-AR', {
+  return new Intl.NumberFormat('es-EC', {
     style: 'currency',
-    currency: 'ARS',
+    currency: 'USD',
   }).format(monto);
 }
 
@@ -41,6 +41,7 @@ export function getEstadoColor(estado: EstadoPedido): string {
     pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     aceptado: 'bg-blue-100 text-blue-800 border-blue-200',
     agendado: 'bg-purple-100 text-purple-800 border-purple-200',
+    en_progreso: 'bg-blue-100 text-blue-800 border-blue-200',
     en_camino: 'bg-orange-100 text-orange-800 border-orange-200',
     completado: 'bg-green-100 text-green-800 border-green-200',
     cancelado: 'bg-red-100 text-red-800 border-red-200',
@@ -53,6 +54,7 @@ export function getEstadoLabel(estado: EstadoPedido): string {
     pendiente: 'Pendiente',
     aceptado: 'Aceptado',
     agendado: 'Agendado',
+    en_progreso: 'En progreso',
     en_camino: 'En Camino',
     completado: 'Completado',
     cancelado: 'Cancelado',

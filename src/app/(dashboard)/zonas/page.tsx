@@ -23,7 +23,7 @@ const zonaSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color hexadecimal inválido'),
-  capacidad_maxima: z.number({ invalid_type_error: 'Capacidad requerida' }).int().min(1).max(20),
+  capacidad_maxima: z.number({ error: 'Capacidad requerida' }).int().min(1).max(20),
 });
 
 type ZonaForm = z.infer<typeof zonaSchema>;

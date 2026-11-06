@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SERV · Aplicación web
 
-## Getting Started
+Con la API de Serv en ejecución, instala las dependencias con `npm ci` e inicia Next.js con `npm run dev`. La web escucha en el puerto 3000 y usa la API del puerto 4000 de forma predeterminada.
 
-First, run the development server:
+## Dónde trabajar
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- `src/app` define las URLs y los layouts. Las rutas de tienda y repartidor que muestran despacho comparten la misma pantalla.
+- `src/features/despacho` reúne la pantalla de despacho, el tablero, los ajustes manuales, las consultas, el servicio HTTP y el estado de sus filtros.
+- `src/components/layout` contiene la navegación por rol y el selector de apariencia. Los controles compartidos viven en `src/components/ui`.
+- `src/app/globals.css` define los colores de ambos temas.
+- Los demás módulos usan `src/services`, `src/hooks` y `src/store`. La conexión HTTP común vive en `src/lib/api-client.ts`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Entregas y chat
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+En **Mis entregas**, cada parada permite contactar al cliente o a la tienda. El enlace abre el pedido y el interlocutor correctos. En **Chat de pedido** también se puede cambiar de contacto; el historial y los eventos en tiempo real se limitan al remitente y al destinatario.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Despacho** muestra las entregas atrasadas aunque tengan una ruta asignada. La reprogramación exige una fecha y hora futuras, repartidor y motivo, y conserva el historial. El repartidor puede confirmar entregas atrasadas desde **Mis entregas**.
 
-## Learn More
+Antes de actualizar el panel, actualiza la API: necesita `/api/auth/sesion`, `/api/chat/pedidos` y las rutas de reprogramación. Configura `API_URL` si Next.js necesita acceder a la API por una dirección interna diferente de `NEXT_PUBLIC_API_URL`.
 
-To learn more about Next.js, take a look at the following resources:
+Verificación: `npm test`, `npx tsc --noEmit` y `npm run build`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Acceso demo en desarrollo
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El backend carga los datos base con `npm run seed`. Para crear las cuatro cuentas demo, configura `SERV_DEMO_PASSWORD` en su archivo privado de entorno y ejecuta `npm run seed:demo`. En el frontend, los botones del login aparecen en desarrollo cuando `NEXT_PUBLIC_SERV_DEMO_PASSWORD` en `.env.local` coincide con esa clave. Cualquier persona con acceso a esta web de desarrollo puede usar los cuatro roles, incluido administración. Usa este flujo únicamente en un entorno de demostración.

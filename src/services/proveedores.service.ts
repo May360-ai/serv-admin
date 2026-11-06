@@ -15,7 +15,7 @@ export const proveedoresService = {
    * Obtiene la tienda vinculada al usuario autenticado.
    * Si proveedor_id no está disponible, busca por usuario_id en el listado.
    */
-  async obtenerMiTienda(proveedor_id?: string, usuario_id?: string): Promise<Tienda | null> {
+  async obtenerMiTienda(proveedor_id?: string | number | null, usuario_id?: string): Promise<Tienda | null> {
     try {
       if (proveedor_id) {
         const { data } = await apiClient.get<unknown>(`/api/proveedores/${proveedor_id}`);

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { zonasService } from '@/services/zonas.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -39,9 +41,12 @@ export default function CheckoutPage() {
     obtenerTotal,
   } = useCarritoStore();
 
-  const [calle, setCalle] = useState('Av. Corrientes 1500');
-  const [ciudad, setCiudad] = useState('Buenos Aires');
-  const [referencia, setReferencia] = useState('Piso 4, Depto B');
+  const [zona, setZona] = useState('');
+  const { data: zonas = [] } = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
+  const [calle, setCalle] = useState('');
+  const [ciudad, setCiudad] = useState('Ambato');
+  const [referencia, setReferencia] = useState('');
+  const [horaEntrega, setHoraEntrega] = useState('12:00');
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [instrucciones, setInstrucciones] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -50,7 +55,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const manana = new Date();
     manana.setDate(manana.getDate() + 1);
-    setFechaEntrega(manana.toISOString().split('T')[0]);
+    setFechaEntrega(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(manana));
   }, []);
 
   const subtotal = obtenerSubtotal();
@@ -74,38 +79,35 @@ export default function CheckoutPage() {
 
     try {
       // 1. Crear o asegurar dirección vía API
-      let direccion_id = 1;
-      try {
+
         const { data: dirData } = await apiClient.post<{ id: number }>('/api/datos/direcciones', {
           nombre_ubicacion: 'Entrega Pedido',
           direccion: calle.trim(),
           referencia: referencia.trim() || undefined,
           ciudad: ciudad.trim() || 'Buenos Aires',
+          zona_id: Number(zona),
           es_principal: false,
         });
-        if (dirData?.id) direccion_id = dirData.id;
-      } catch {
-        // Continuar con fallback si la dirección ya existe o falla el guardado secundario
-      }
+      const direccion_id = dirData.id;
 
       // 2. Armar la colección de items comprados para el backend
       const itemsComprados = items.map((i) => ({
-        item_id: i.item_id,
+        item_id: Number(i.item_id),
         cantidad: i.cantidad,
       }));
 
       // 3. Crear pedido en el backend
       const payload = {
-        proveedor_id: proveedor_id || items[0]?.proveedor_id || 1,
+        proveedor_id: Number(proveedor_id || items[0]?.proveedor_id),
         direccion_id,
-        fecha_programada: fechaEntrega ? new Date(fechaEntrega).toISOString() : null,
+        fecha_programada: fechaEntrega ? new Date(fechaEntrega + 'T' + horaEntrega + ':00-05:00').toISOString() : null,
         instrucciones_especiales: instrucciones.trim() || undefined,
         items_comprados: itemsComprados,
       };
 
-      await apiClient.post('/api/pedidos', payload);
+      const { data } = await apiClient.post<{ pedido: { ruta_id: string | null } }>('/api/pedidos', payload);
 
-      toast.success('¡Pedido procesado con éxito!');
+      toast.success(data.pedido.ruta_id ? 'Pedido asignado a una ruta de entrega.' : 'Pedido registrado, pendiente de asignación.');
       vaciarCarrito();
       router.push('/mis-pedidos');
     } catch (error) {
@@ -277,6 +279,13 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-1.5">
+                <Label htmlFor="zona">Zona de reparto</Label>
+                <select id="zona" required value={zona} onChange={e => setZona(e.target.value)} className="w-full border rounded-md p-2">
+                  <option value="">Selecciona una zona</option>
+                  {zonas.filter(z => z.activa).map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
+                </select>
+                <Label htmlFor="hora_entrega">Hora de entrega en Ambato</Label>
+                <Input id="hora_entrega" type="time" value={horaEntrega} onChange={e => setHoraEntrega(e.target.value)} required />
                 <Label htmlFor="fecha_entrega">Fecha Programada de Entrega *</Label>
                 <div className="relative">
                   <Input

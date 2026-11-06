@@ -1,3 +1,1 @@
-import RutasPage from '../../rutas/page';
-
-export default RutasPage;
+export { default } from '@/features/despacho/pantalla-despacho';

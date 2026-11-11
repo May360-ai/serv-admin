@@ -1,21 +1,18 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Store, MapPin, Phone, CheckCircle, ShieldCheck } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { Store, MapPin, Phone, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { Tienda } from '@/types';
+import { Button } from '@/components/ui/button';
+import { consultarTiendas, RespuestaTiendasInvalida } from './consulta-tiendas';
 
 export default function AdminTiendasPage() {
-  const { data: tiendas = [], isLoading } = useQuery<Tienda[]>({
+  const { data: tiendas = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['admin-tiendas'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<{ data: Tienda[] }>('/api/proveedores');
-      return data?.data ?? [];
-    },
+    queryFn: consultarTiendas,
   });
 
   return (
@@ -28,11 +25,22 @@ export default function AdminTiendasPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div role="status" aria-label="Cargando tiendas" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-lg" />
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          role="alert"
+          title={error instanceof RespuestaTiendasInvalida ? 'Respuesta inesperada' : 'No se pudieron cargar las tiendas'}
+          description={error instanceof RespuestaTiendasInvalida
+            ? error.message
+            : 'Ocurrió un error al consultar las tiendas. Vuelve a intentarlo.'}
+          icon={<AlertCircle className="h-10 w-10 text-destructive" />}
+          action={<Button variant="outline" onClick={() => void refetch()} isLoading={isFetching}>Reintentar</Button>}
+          className="py-16 bg-card border border-dashed rounded-lg"
+        />
       ) : tiendas.length === 0 ? (
         <EmptyState
           title="Sin tiendas registradas"

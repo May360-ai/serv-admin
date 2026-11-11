@@ -17,7 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { zonasService } from '@/services/zonas.service';
-import type { Ruta, Repartidor } from '@/types';
+import type { Ruta } from '@/types';
 import { EntregasAtrasadas } from './entregas-atrasadas';
 
 export default function RutasPage() {
@@ -86,11 +86,6 @@ export default function RutasPage() {
     },
     [isReordenando, queryClient]
   );
-
-  // Extraer repartidores asignados o disponibles para el selector de ajuste
-  const repartidoresDisponibles: Repartidor[] = rutas
-    .map((r) => r.repartidor)
-    .filter((rep): rep is Repartidor => rep !== undefined);
 
   if (!fechaSeleccionada) return <p>Cargando despacho…</p>;
 
@@ -178,6 +173,9 @@ export default function RutasPage() {
             pedidos={pedidosLibres}
             rutas={rutas}
             isLoading={isLoadingPedidos}
+            isLoadingRutas={isLoadingRutas}
+            errorRutas={errorRutas}
+            onReintentarRutas={() => void refetchRutas()}
           />}
         </div>
 
@@ -217,8 +215,8 @@ export default function RutasPage() {
 
       {/* Modal de ajuste manual de ruta */}
       <ModalAjusteRuta
+        key={rutaAjustando?.id ?? 'sin-ruta'}
         ruta={rutaAjustando}
-        repartidoresDisponibles={repartidoresDisponibles}
         open={Boolean(rutaAjustando)}
         onOpenChange={(open) => {
           if (!open) setRutaAjustando(null);

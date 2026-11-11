@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/api-client';
+import { z } from 'zod';
+import type { RepartidorActivo, AsignacionRepartidor } from './elegibilidad';
 import type {
   Ruta,
   ArmarRutasRequest,
@@ -8,7 +10,34 @@ import type {
   FiltrosRutas,
 } from '@/types';
 
+const idSchema = z.union([z.number().int().positive(), z.string().min(1)]).transform(String);
+const activosSchema = z.object({ data: z.array(z.object({
+  id: idSchema, nombre: z.string().min(1), apellido: z.string().nullable().optional(),
+  telefono: z.string().nullable().optional(),
+  estado: z.literal('activo').optional(),
+})) });
+const asignacionesSchema = z.object({ data: z.array(z.object({
+  id: z.string().min(1), fecha_entrega: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  repartidor_id: idSchema,
+})) });
+
 export const rutasService = {
+  /** Activos no implica disponibles: este endpoint no informa ocupación por fecha. */
+  async listarRepartidoresActivos(): Promise<RepartidorActivo[]> {
+    const { data } = await apiClient.get<unknown>('/api/rutas/repartidores');
+    const result = activosSchema.safeParse(data);
+    if (!result.success) throw new Error('Respuesta de repartidores inesperada');
+    return result.data.data;
+  },
+
+  /** Solo el administrador tiene alcance global; no filtrar por zona ni estado. */
+  async listarAsignaciones(fecha: string): Promise<AsignacionRepartidor[]> {
+    const params = new URLSearchParams({ fecha_entrega: fecha });
+    const { data } = await apiClient.get<unknown>(`/api/rutas?${params}`);
+    const result = asignacionesSchema.safeParse(data);
+    if (!result.success) throw new Error('Respuesta de asignaciones inesperada');
+    return result.data.data;
+  },
   /**
    * Lista las rutas de un día y zona específicos.
    */

@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Ruta, Repartidor } from '@/types';
-import { rutasService } from '@/features/despacho/rutas.service';
-import { RUTAS_QUERY_KEY } from '@/features/despacho/use-rutas';
+import type { Ruta } from '@/types';
+import { useDisponibilidadRepartidores, useReasignarRepartidor } from './use-rutas';
+import { mensajeErrorDespacho, repartidoresElegibles } from './elegibilidad';
 import {
   Dialog,
   DialogContent,
@@ -21,51 +20,45 @@ import { Label } from '@/components/ui/label';
 
 interface ModalAjusteRutaProps {
   ruta: Ruta | null;
-  repartidoresDisponibles: Repartidor[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ModalAjusteRuta({
   ruta,
-  repartidoresDisponibles,
   open,
   onOpenChange,
 }: ModalAjusteRutaProps) {
-  const queryClient = useQueryClient();
-  const [repartidorId, setRepartidorId] = useState<string>(
-    ruta?.repartidor_id ?? ''
-  );
-
-  const { mutate: reasignar, isPending } = useMutation({
-    mutationFn: async ({
-      rutaId,
-      nuevoRepartidorId,
-    }: {
-      rutaId: string;
-      nuevoRepartidorId: string;
-    }) => {
-      return rutasService.reasignarRepartidor(rutaId, nuevoRepartidorId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
-      toast.success('Repartidor reasignado correctamente');
-      onOpenChange(false);
-    },
-    onError: (error: Error) => {
-      toast.error(`Error al reasignar: ${error.message}`);
-    },
-  });
+  const [repartidorId, setRepartidorId] = useState('');
+  const consulta = useDisponibilidadRepartidores(ruta?.fecha_entrega ?? '', open && ruta?.estado === 'armando');
+  const { mutate: reasignar, isPending, error, reset } = useReasignarRepartidor(() => onOpenChange(false));
 
   if (!ruta) return null;
 
+  const rutaPropia = consulta.alcanceGlobal || (consulta.proveedorId != null &&
+    ruta.proveedor_id != null && String(ruta.proveedor_id) === String(consulta.proveedorId));
+  const candidatos = consulta.data && consulta.puedeConsultar && rutaPropia
+    ? consulta.alcanceGlobal
+      ? repartidoresElegibles(consulta.data.activos, consulta.data.asignaciones, ruta)
+      : consulta.data.activos.filter(rep => rep.id !== String(ruta.repartidor_id))
+    : [];
+  const puedeElegir = Boolean(ruta.id && ruta.fecha_entrega) && ruta.estado === 'armando' &&
+    consulta.puedeConsultar && rutaPropia &&
+    !consulta.isPending && !consulta.isFetching && !consulta.isError && !isPending;
+
+  const actualizarCandidatos = () => {
+    setRepartidorId('');
+    reset();
+    void consulta.refetch();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!repartidorId) {
-      toast.error('Seleccioná un repartidor');
+    if (!puedeElegir || !candidatos.some(rep => rep.id === repartidorId)) {
+      toast.error('Seleccioná un candidato válido para esta ruta');
       return;
     }
-    reasignar({ rutaId: ruta.id, nuevoRepartidorId: repartidorId });
+    reasignar({ rutaId: ruta.id, repartidorId });
   };
 
   return (
@@ -90,21 +83,33 @@ export function ModalAjusteRuta({
           </div>
 
           <div className="space-y-1.5">
+            {ruta.estado !== 'armando' ? <p role="alert">La ruta ya salió o está cerrada; no admite reasignación.</p>
+              : !consulta.puedeConsultar || !rutaPropia ? <p role="alert">No tienes permiso para reasignar esta ruta o faltan los datos de su tienda.</p>
+              : consulta.isError ? <p role="alert">No se pudieron consultar los candidatos. {consulta.error?.message} <Button type="button" variant="outline" onClick={actualizarCandidatos}>Reintentar</Button></p>
+              : consulta.isPending || consulta.isFetching ? <p role="status">{consulta.alcanceGlobal ? 'Consultando repartidores y asignaciones del día…' : 'Consultando repartidores activos…'}</p>
+              : candidatos.length === 0 ? <p role="status">{consulta.alcanceGlobal ? 'No hay otros repartidores activos libres para esta fecha.' : 'No hay otros repartidores activos para seleccionar.'}</p> : null}
+            {consulta.puedeConsultar && rutaPropia && !consulta.alcanceGlobal && <p className="text-xs text-muted-foreground">Los candidatos están activos. Su disponibilidad para esta fecha se verifica al confirmar; no se consultan asignaciones de otras tiendas.</p>}
             <Label htmlFor="select-repartidor">Reasignar a Repartidor</Label>
             <Select
               id="select-repartidor"
               value={repartidorId}
-              onChange={(e) => setRepartidorId(e.target.value)}
+              onChange={(e) => { setRepartidorId(e.target.value); reset(); }}
               data-cy="select-repartidor-ajuste"
+              disabled={!puedeElegir || candidatos.length === 0}
             >
-              <option value="">Seleccionar repartidor disponible</option>
-              {repartidoresDisponibles.map((rep) => (
+              <option value="">{consulta.alcanceGlobal ? 'Seleccionar repartidor disponible' : 'Seleccionar repartidor activo'}</option>
+              {puedeElegir && candidatos.map((rep) => (
                 <option key={rep.id} value={rep.id}>
-                  {rep.nombre} ({rep.vehiculo ?? 'Moto'}) - {rep.estado}
+                  {rep.nombre} {rep.apellido} · {consulta.alcanceGlobal ? `Libre el ${ruta.fecha_entrega}` : 'Activo · disponibilidad al confirmar'}
                 </option>
               ))}
             </Select>
           </div>
+
+          {error && <div role="alert" className="text-sm text-destructive">
+            <p>{mensajeErrorDespacho(error)}</p>
+            {consulta.puedeConsultar && rutaPropia && <Button type="button" variant="outline" onClick={actualizarCandidatos} disabled={isPending || consulta.isFetching}>Actualizar candidatos</Button>}
+          </div>}
 
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
@@ -126,6 +131,7 @@ export function ModalAjusteRuta({
             <Button
               type="submit"
               isLoading={isPending}
+              disabled={!puedeElegir || !candidatos.some(rep => rep.id === repartidorId)}
               data-cy="btn-confirmar-ajuste-ruta"
             >
               <RefreshCw className="h-4 w-4 mr-1" />

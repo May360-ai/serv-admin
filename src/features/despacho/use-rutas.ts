@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { rutasService } from '@/features/despacho/rutas.service';
+import { useAuthStore } from '@/store/auth.store';
+import { mensajeErrorDespacho } from './elegibilidad';
 import type {
   FiltrosRutas,
   ArmarRutasRequest,
@@ -11,6 +13,48 @@ import type {
 } from '@/types';
 
 export const RUTAS_QUERY_KEY = 'rutas' as const;
+export const REPARTIDORES_QUERY_KEY = 'repartidores-despacho' as const;
+
+export function useDisponibilidadRepartidores(fecha: string, enabled: boolean) {
+  const usuario = useAuthStore(s => s.usuario);
+  const alcanceGlobal = usuario?.rol === 'administrador';
+  const puedeConsultar = alcanceGlobal || (usuario?.rol === 'proveedor' && usuario.proveedor_id != null);
+  const consulta = useQuery({
+    queryKey: [REPARTIDORES_QUERY_KEY, usuario?.id, usuario?.rol, usuario?.proveedor_id, fecha],
+    enabled: enabled && puedeConsultar && Boolean(fecha),
+    queryFn: async () => {
+      if (!puedeConsultar) throw new Error('No tienes permiso para consultar repartidores');
+      const [activos, asignaciones] = await Promise.all([
+        rutasService.listarRepartidoresActivos(),
+        alcanceGlobal ? rutasService.listarAsignaciones(fecha) : Promise.resolve([]),
+      ]);
+      return { activos, asignaciones };
+    },
+    staleTime: 0,
+  });
+  return { ...consulta, alcanceGlobal, puedeConsultar, proveedorId: usuario?.proveedor_id };
+}
+
+export function useReasignarRepartidor(onSuccess: () => void) {
+  const client = useQueryClient();
+  const actualizar = () => {
+    void client.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
+    void client.invalidateQueries({ queryKey: [REPARTIDORES_QUERY_KEY] });
+  };
+  return useMutation({
+    mutationFn: ({ rutaId, repartidorId }: { rutaId: string; repartidorId: string }) =>
+      rutasService.reasignarRepartidor(rutaId, repartidorId),
+    onSuccess: () => {
+      actualizar();
+      toast.success('Repartidor reasignado correctamente');
+      onSuccess();
+    },
+    onError: (error: Error) => {
+      actualizar();
+      toast.error(`Error al reasignar: ${mensajeErrorDespacho(error)}`);
+    },
+  });
+}
 
 export function useRutas(filtros: FiltrosRutas) {
   return useQuery({
@@ -46,10 +90,13 @@ export function useAgregarPedidoARuta() {
       rutasService.agregarPedidoARuta(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       toast.success('Pedido asignado a la ruta');
     },
     onError: (error: Error) => {
-      toast.error(`Error al asignar pedido: ${error.message}`);
+      queryClient.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      toast.error(`Error al asignar pedido: ${mensajeErrorDespacho(error)}`);
     },
   });
 }

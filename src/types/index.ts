@@ -87,6 +87,7 @@ export interface Repartidor {
 
 export interface Ruta {
   id: string;
+  proveedor_id?: string | number; // Campo devuelto por la API de despacho.
   nombre: string;
   fecha_entrega: string;
   zona_id: string;

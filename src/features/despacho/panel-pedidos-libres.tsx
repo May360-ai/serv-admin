@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatHora } from '@/lib/utils';
 import { useAgregarPedidoARuta } from '@/features/despacho/use-rutas';
+import { esRutaCompatible, mensajeErrorDespacho } from './elegibilidad';
 
 interface PedidoLibreItemProps {
   pedido: Pedido;
@@ -15,10 +16,10 @@ interface PedidoLibreItemProps {
 }
 
 function PedidoLibreItem({ pedido, rutas }: PedidoLibreItemProps) {
-  const { mutate: asignar, isPending } = useAgregarPedidoARuta();
+  const { mutate: asignar, isPending, error } = useAgregarPedidoARuta();
 
   const rutasConCapacidad = rutas.filter(
-    (r) => r.pedidos.length < r.capacidad_maxima
+    (r) => esRutaCompatible(pedido, r)
   );
 
   return (
@@ -91,11 +92,12 @@ function PedidoLibreItem({ pedido, rutas }: PedidoLibreItemProps) {
         </div>
       )}
 
-      {rutasConCapacidad.length === 0 && rutas.length > 0 && (
+      {error && <p role="alert" className="mt-2 text-xs text-destructive">{mensajeErrorDespacho(error)}</p>}
+      {rutasConCapacidad.length === 0 && (
         <div className="mt-2 pt-2 border-t border-border">
           <p className="text-xs text-destructive flex items-center gap-1">
             <AlertTriangle className="h-3 w-3" />
-            Todas las rutas están al límite de capacidad
+            No hay rutas compatibles con este pedido. Revisa zona, tienda, fecha, estado y capacidad.
           </p>
         </div>
       )}
@@ -107,9 +109,12 @@ interface PanelPedidosLibresProps {
   pedidos: Pedido[];
   rutas: Ruta[];
   isLoading: boolean;
+  isLoadingRutas: boolean;
+  errorRutas: Error | null;
+  onReintentarRutas: () => void;
 }
 
-export function PanelPedidosLibres({ pedidos, rutas, isLoading }: PanelPedidosLibresProps) {
+export function PanelPedidosLibres({ pedidos, rutas, isLoading, isLoadingRutas, errorRutas, onReintentarRutas }: PanelPedidosLibresProps) {
   const pedidosOrdenados = [...pedidos].sort((a, b) => {
     // Pedidos de último minuto primero
     if (a.ultimo_minuto && !b.ultimo_minuto) return -1;
@@ -131,7 +136,9 @@ export function PanelPedidosLibres({ pedidos, rutas, isLoading }: PanelPedidosLi
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2 scrollbar-thin pr-1">
-        {isLoading ? (
+        {errorRutas ? (
+          <p role="alert">No se pudieron cargar las rutas para asignar pedidos. <Button variant="outline" onClick={onReintentarRutas}>Reintentar</Button></p>
+        ) : isLoading || isLoadingRutas ? (
           Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-lg" />
           ))

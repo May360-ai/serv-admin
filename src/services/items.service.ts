@@ -50,8 +50,11 @@ export const itemsService = {
       `/api/items?${params.toString()}`
     );
 
-    if (Array.isArray(data)) return data;
-    return (data as { data: ItemCatalogo[] })?.data ?? [];
+    if (!Array.isArray(data) || data.some(item => !item || !Number.isInteger(item.id) ||
+      !Number.isInteger(item.proveedor_id) || typeof item.nombre !== 'string' || typeof item.activo !== 'boolean')) {
+      throw new Error('Respuesta de catálogo inesperada');
+    }
+    return data;
   },
 
   /**

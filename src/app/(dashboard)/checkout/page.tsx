@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { zonasService } from '@/services/zonas.service';
 import Link from 'next/link';
@@ -12,14 +12,15 @@ import {
   Minus,
   Truck,
   MapPin,
-  Calendar,
   FileText,
   ArrowLeft,
   CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCarritoStore } from '@/store/carrito.store';
-import { apiClient } from '@/lib/api-client';
+import { crearRegistroPedido } from '@/services/pedidos.service';
+import { itemsService } from '@/services/items.service';
+import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ import { formatMoneda } from '@/lib/utils';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const usuario = useAuthStore(s => s.usuario);
+  const registrar = useMemo(() => crearRegistroPedido(usuario?.id), [usuario?.id]);
   const {
     items,
     proveedor_id,
@@ -44,19 +47,12 @@ export default function CheckoutPage() {
   const [zona, setZona] = useState('');
   const { data: zonas = [] } = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
   const [calle, setCalle] = useState('');
-  const [ciudad, setCiudad] = useState('Ambato');
+  const [ciudad, setCiudad] = useState('');
   const [referencia, setReferencia] = useState('');
   const [horaEntrega, setHoraEntrega] = useState('12:00');
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [instrucciones, setInstrucciones] = useState('');
   const [enviando, setEnviando] = useState(false);
-
-  // Inicializar fecha mañana en cliente para evitar problemas de prerendering
-  useEffect(() => {
-    const manana = new Date();
-    manana.setDate(manana.getDate() + 1);
-    setFechaEntrega(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(manana));
-  }, []);
 
   const subtotal = obtenerSubtotal();
   const costoEnvio = obtenerCostoEnvio();
@@ -78,36 +74,18 @@ export default function CheckoutPage() {
     setEnviando(true);
 
     try {
-      // 1. Crear o asegurar dirección vía API
-
-        const { data: dirData } = await apiClient.post<{ id: number }>('/api/datos/direcciones', {
-          nombre_ubicacion: 'Entrega Pedido',
-          direccion: calle.trim(),
-          referencia: referencia.trim() || undefined,
-          ciudad: ciudad.trim() || 'Buenos Aires',
-          zona_id: Number(zona),
-          es_principal: false,
-        });
-      const direccion_id = dirData.id;
-
-      // 2. Armar la colección de items comprados para el backend
-      const itemsComprados = items.map((i) => ({
-        item_id: Number(i.item_id),
-        cantidad: i.cantidad,
-      }));
-
-      // 3. Crear pedido en el backend
-      const payload = {
-        proveedor_id: Number(proveedor_id || items[0]?.proveedor_id),
-        direccion_id,
-        fecha_programada: fechaEntrega ? new Date(fechaEntrega + 'T' + horaEntrega + ':00-05:00').toISOString() : null,
+      const proveedor = Number(proveedor_id ?? items[0]?.proveedor_id);
+      const catalogo = await itemsService.listarCatalogo({ proveedor_id: proveedor });
+      const pedido = await registrar({
+        proveedor_id: proveedor,
+        direccion: { nombre_ubicacion: 'Entrega Pedido', direccion: calle,
+          referencia: referencia.trim() || undefined, ciudad, zona_id: Number(zona) },
+        fecha_entrega: fechaEntrega, hora_entrega: horaEntrega,
         instrucciones_especiales: instrucciones.trim() || undefined,
-        items_comprados: itemsComprados,
-      };
+        items_comprados: items.map(i => ({ item_id: Number(i.item_id), cantidad: i.cantidad })),
+      }, usuario, catalogo);
 
-      const { data } = await apiClient.post<{ pedido: { ruta_id: string | null } }>('/api/pedidos', payload);
-
-      toast.success(data.pedido.ruta_id ? 'Pedido asignado a una ruta de entrega.' : 'Pedido registrado, pendiente de asignación.');
+      toast.success(pedido.ruta_id ? 'Pedido asignado a una ruta de entrega.' : 'Pedido registrado, pendiente de asignación.');
       vaciarCarrito();
       router.push('/mis-pedidos');
     } catch (error) {
@@ -258,12 +236,13 @@ export default function CheckoutPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="ciudad">Ciudad</Label>
+                  <Label htmlFor="ciudad">Ciudad *</Label>
                   <Input
                     id="ciudad"
                     value={ciudad}
                     onChange={(e) => setCiudad(e.target.value)}
                     placeholder="Buenos Aires"
+                    required
                   />
                 </div>
 

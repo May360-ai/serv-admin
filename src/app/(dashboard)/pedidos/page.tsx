@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { EstadoPedido } from '@/types';
+import { useAuthStore } from '@/store/auth.store';
+import { ContratoPedidosError } from '@/services/pedidos-contrato';
 
 const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -22,12 +24,13 @@ const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
 ];
 
 export default function PedidosPage() {
+  const usuario = useAuthStore(s => s.usuario);
   const [modalOpen, setModalOpen] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPedido | ''>('');
   const [fechaFiltro, setFechaFiltro] = useState('');
 
-  const { data, isLoading, refetch } = useTodosPedidos({
+  const { data, isLoading, isError, error, refetch } = useTodosPedidos({
     busqueda: busqueda || undefined,
     estado: estadoFiltro || undefined,
     fecha: fechaFiltro || undefined,
@@ -42,7 +45,7 @@ export default function PedidosPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pedidos</h1>
           <p className="text-muted-foreground text-sm">
-            {isLoading ? 'Cargando...' : `${pedidos.length} pedido(s) encontrado(s)`}
+            {!usuario || isLoading ? 'Cargando...' : isError ? 'Consulta no disponible' : `${pedidos.length} pedido(s) encontrado(s)`}
           </p>
         </div>
         <RoleGuard allowedRoles={['cliente']}>
@@ -52,6 +55,8 @@ export default function PedidosPage() {
           </Button>
         </RoleGuard>
       </div>
+
+      <p className="text-sm text-muted-foreground">{usuario?.rol === 'cliente' ? 'Pedidos de tu cuenta de cliente.' : usuario?.rol === 'proveedor' ? 'Pedidos de tu tienda. Los filtros se aplican a este listado.' : 'La consulta administrativa global requiere un contrato de API adicional.'}</p>
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3 p-3 bg-card rounded-lg border border-border">
@@ -101,7 +106,10 @@ export default function PedidosPage() {
       </div>
 
       {/* Tabla */}
-      <TablaPedidos pedidos={pedidos} isLoading={isLoading} />
+      {isError ? <div role="alert" className="rounded-lg border p-4 text-destructive">
+        <p>{error.message}</p>
+        {!(error instanceof ContratoPedidosError) && <Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
+      </div> : <TablaPedidos pedidos={pedidos} isLoading={!usuario || isLoading} />}
 
       {/* Modal accesible únicamente por rol cliente */}
       <RoleGuard allowedRoles={['cliente']}>

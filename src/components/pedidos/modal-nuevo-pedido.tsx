@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
 import { zonasService } from '@/services/zonas.service';
+import { itemsService } from '@/services/items.service';
+import { nuevoPedidoSchema } from '@/services/pedidos-contrato';
 import { useCrearPedido } from '@/hooks/use-pedidos';
+import { useAuthStore } from '@/store/auth.store';
+import type { CrearPedidoRequest } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,250 +16,88 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-const nuevoPedidoSchema = z.object({
-  cliente_nombre: z.string().min(2, 'Nombre requerido'),
-  cliente_telefono: z.string().min(6, 'Teléfono inválido'),
-  fecha_entrega: z.string().min(1, 'Fecha requerida'),
-  ventana_desde: z.string().min(1, 'Hora de inicio requerida'),
-  ventana_hasta: z.string().min(1, 'Hora de fin requerida'),
-  zona_id: z.string().min(1, 'Zona requerida'),
-  calle: z.string().min(2, 'Calle requerida'),
-  numero: z.string().min(1, 'Número requerido'),
-  ciudad: z.string().min(2, 'Ciudad requerida'),
-  referencia: z.string().optional(),
-  latitud: z.number().optional(),
-  longitud: z.number().optional(),
-  monto_total: z.number({ error: 'Monto inválido' }).positive('Monto debe ser positivo'),
-  notas: z.string().optional(),
-});
-
-type NuevoPedidoForm = z.infer<typeof nuevoPedidoSchema>;
-
 interface ModalNuevoPedidoProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ModalNuevoPedido({ open, onOpenChange }: ModalNuevoPedidoProps) {
-  const { data: zonas = [] } = useQuery({
-    queryKey: ['zonas'],
-    queryFn: zonasService.listarZonas,
-    staleTime: 300_000,
-  });
-
-  const { mutate: crearPedido, isPending } = useCrearPedido();
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<NuevoPedidoForm>({
+  const usuario = useAuthStore(s => s.usuario);
+  const permitido = usuario?.rol === 'cliente';
+  const zonas = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas, enabled: open && permitido });
+  const catalogo = useQuery({ queryKey: ['catalogo-items', 'pedido-manual'], queryFn: () => itemsService.listarCatalogo(), enabled: open && permitido });
+  const { mutate: crearPedido, isPending, error } = useCrearPedido(catalogo.data ?? []);
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<CrearPedidoRequest>({
     resolver: zodResolver(nuevoPedidoSchema),
-    defaultValues: {
-      fecha_entrega: '',
-      ciudad: '',
-    },
+    defaultValues: { items_comprados: [], fecha_entrega: '', hora_entrega: '',
+      direccion: { nombre_ubicacion: '', direccion: '', ciudad: '' } },
   });
-
-  // Asignar fecha actual en el cliente para evitar mismatch de hidratación y bloqueo de prerender en Next.js
-  useEffect(() => {
-    if (open) {
-      setValue('fecha_entrega', new Date().toISOString().split('T')[0]);
-    }
-  }, [open, setValue]);
-
-  const onSubmit = (data: NuevoPedidoForm) => {
-    crearPedido(
-      {
-        cliente_nombre: data.cliente_nombre,
-        cliente_telefono: data.cliente_telefono,
-        fecha_entrega: data.fecha_entrega,
-        ventana_horaria: {
-          desde: data.ventana_desde,
-          hasta: data.ventana_hasta,
-        },
-        zona_id: data.zona_id,
-        direccion: {
-          calle: data.calle,
-          numero: data.numero,
-          ciudad: data.ciudad,
-          zona_id: data.zona_id,
-          referencia: data.referencia,
-          latitud: data.latitud ?? 0,
-          longitud: data.longitud ?? 0,
-        },
-        notas: data.notas,
-        monto_total: data.monto_total,
-      },
-      {
-        onSuccess: () => {
-          reset();
-          onOpenChange(false);
-        },
-      }
-    );
+  const { fields, append, remove, replace } = useFieldArray({ control, name: 'items_comprados' });
+  const proveedor = useWatch({ control, name: 'proveedor_id' });
+  const productos = (catalogo.data ?? []).filter(item => item.proveedor_id === proveedor && item.activo);
+  const tiendas = [...new Map((catalogo.data ?? []).map(item => [item.proveedor_id, item.proveedores?.nombre_comercial || `Tienda #${item.proveedor_id}`])).entries()];
+  const onSubmit = (datos: CrearPedidoRequest) => {
+    crearPedido(datos, { onSuccess: () => { reset(); onOpenChange(false); } });
   };
+  const errorValidacion = errors.proveedor_id?.message || errors.items_comprados?.root?.message || errors.items_comprados?.message ||
+    errors.fecha_entrega?.message || errors.hora_entrega?.message;
+  const cargando = zonas.isPending || catalogo.isPending;
+  const errorConsulta = zonas.isError || catalogo.isError;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl" onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>Nuevo Pedido</DialogTitle>
-          <DialogDescription>
-            Registrá un pedido manualmente (mostrador / call center)
-          </DialogDescription>
+          <DialogTitle>Nuevo pedido</DialogTitle>
+          <DialogDescription>{permitido ? 'El pedido se registra para tu cuenta de cliente. El servidor confirma precios y stock.' : 'El registro en nombre de otro cliente no está disponible para tu rol.'}</DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="cliente_nombre">Nombre del cliente *</Label>
-              <Input
-                id="cliente_nombre"
-                placeholder="Ana Gómez"
-                data-cy="input-cliente-nombre"
-                {...register('cliente_nombre')}
-              />
-              {errors.cliente_nombre && (
-                <p className="text-xs text-destructive">{errors.cliente_nombre.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cliente_telefono">Teléfono *</Label>
-              <Input
-                id="cliente_telefono"
-                placeholder="+54 11 1234-5678"
-                {...register('cliente_telefono')}
-              />
-              {errors.cliente_telefono && (
-                <p className="text-xs text-destructive">{errors.cliente_telefono.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="fecha_entrega">Fecha de entrega *</Label>
-              <Input
-                id="fecha_entrega"
-                type="date"
-                data-cy="input-fecha-entrega-pedido"
-                {...register('fecha_entrega')}
-              />
-              {errors.fecha_entrega && (
-                <p className="text-xs text-destructive">{errors.fecha_entrega.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ventana_desde">Ventana desde *</Label>
-              <Input id="ventana_desde" type="time" {...register('ventana_desde')} />
-              {errors.ventana_desde && (
-                <p className="text-xs text-destructive">{errors.ventana_desde.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ventana_hasta">Ventana hasta *</Label>
-              <Input id="ventana_hasta" type="time" {...register('ventana_hasta')} />
-              {errors.ventana_hasta && (
-                <p className="text-xs text-destructive">{errors.ventana_hasta.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="zona_id">Zona *</Label>
-            <Select
-              id="zona_id"
-              placeholder="Seleccioná una zona"
-              data-cy="select-zona-pedido"
-              {...register('zona_id')}
-            >
-              {zonas.map((zona) => (
-                <option key={zona.id} value={zona.id}>
-                  {zona.nombre}
-                </option>
-              ))}
-            </Select>
-            {errors.zona_id && (
-              <p className="text-xs text-destructive">{errors.zona_id.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 space-y-1.5">
-              <Label htmlFor="calle">Calle *</Label>
-              <Input
-                id="calle"
-                placeholder="Av. Corrientes"
-                data-cy="input-direccion"
-                {...register('calle')}
-              />
-              {errors.calle && (
-                <p className="text-xs text-destructive">{errors.calle.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="numero">Número *</Label>
-              <Input id="numero" placeholder="1234" {...register('numero')} />
-              {errors.numero && (
-                <p className="text-xs text-destructive">{errors.numero.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="ciudad">Ciudad *</Label>
-              <Input id="ciudad" placeholder="Buenos Aires" {...register('ciudad')} />
-              {errors.ciudad && (
-                <p className="text-xs text-destructive">{errors.ciudad.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="referencia">Referencia</Label>
-              <Input id="referencia" placeholder="Piso 3, depto B" {...register('referencia')} />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="monto_total">Monto total *</Label>
-            <Input
-              id="monto_total"
-              type="number"
-              step="0.01"
-              placeholder="15000"
-              {...register('monto_total', { valueAsNumber: true })}
-            />
-            {errors.monto_total && (
-              <p className="text-xs text-destructive">{errors.monto_total.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="notas">Notas adicionales</Label>
-            <Textarea
-              id="notas"
-              placeholder="Instrucciones especiales, preferencias de entrega..."
-              {...register('notas')}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={isPending} data-cy="btn-crear-pedido">
-              <Plus className="h-4 w-4 mr-1" />
-              Crear Pedido
-            </Button>
-          </DialogFooter>
-        </form>
+        {permitido && <>
+          {cargando && <p role="status">Cargando catálogo y zonas…</p>}
+          {errorConsulta && <p role="alert">No se pudieron cargar el catálogo o las zonas. <Button variant="outline" onClick={() => { void zonas.refetch(); void catalogo.refetch(); }}>Reintentar</Button></p>}
+          {!cargando && !errorConsulta && (!tiendas.length || !zonas.data?.length) && <p role="status">No hay catálogo o zonas disponibles para registrar un pedido.</p>}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <fieldset disabled={isPending || cargando || errorConsulta} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="proveedor-pedido">Tienda *</Label>
+                <Select id="proveedor-pedido" {...register('proveedor_id', { valueAsNumber: true, onChange: () => replace([]) })}>
+                  <option value="">Selecciona una tienda</option>
+                  {tiendas.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Productos y cantidades *</Label>
+                {fields.map((field, index) => <div key={field.id} className="flex gap-2">
+                  <Select aria-label={`Producto ${index + 1}`} {...register(`items_comprados.${index}.item_id`, { valueAsNumber: true })}>
+                    {productos.map(item => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+                  </Select>
+                  <Input aria-label={`Cantidad ${index + 1}`} type="number" min={1} step={1} {...register(`items_comprados.${index}.cantidad`, { valueAsNumber: true })} />
+                  <Button type="button" variant="outline" onClick={() => remove(index)}>Quitar</Button>
+                  {errors.items_comprados?.[index] && <p role="alert">Selecciona un producto y una cantidad entera positiva.</p>}
+                </div>)}
+                <Button type="button" variant="outline" disabled={!productos.length} onClick={() => append({ item_id: productos[0].id, cantidad: 1 })}>Agregar producto</Button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label htmlFor="fecha-pedido">Fecha de entrega *</Label><Input id="fecha-pedido" type="date" {...register('fecha_entrega')} /></div>
+                <div><Label htmlFor="hora-pedido">Hora de entrega (Ecuador) *</Label><Input id="hora-pedido" type="time" {...register('hora_entrega')} /></div>
+              </div>
+              <div><Label htmlFor="nombre-direccion">Nombre de ubicación *</Label><Input id="nombre-direccion" {...register('direccion.nombre_ubicacion')} />{errors.direccion?.nombre_ubicacion && <p role="alert">{errors.direccion.nombre_ubicacion.message}</p>}</div>
+              <div><Label htmlFor="direccion-pedido">Dirección completa *</Label><Input id="direccion-pedido" {...register('direccion.direccion')} />{errors.direccion?.direccion && <p role="alert">{errors.direccion.direccion.message}</p>}</div>
+              <div><Label htmlFor="ciudad-pedido">Ciudad *</Label><Input id="ciudad-pedido" {...register('direccion.ciudad')} />{errors.direccion?.ciudad && <p role="alert">{errors.direccion.ciudad.message}</p>}</div>
+              <div><Label htmlFor="zona-pedido">Zona *</Label><Select id="zona-pedido" {...register('direccion.zona_id', { valueAsNumber: true })}>
+                <option value="">Selecciona una zona</option>
+                {zonas.data?.map(zona => <option key={zona.id} value={zona.id}>{zona.nombre}</option>)}
+              </Select>{errors.direccion?.zona_id && <p role="alert">Selecciona una zona válida.</p>}</div>
+              <div><Label htmlFor="referencia-pedido">Referencia</Label><Input id="referencia-pedido" {...register('direccion.referencia')} /></div>
+              <div><Label htmlFor="notas-pedido">Instrucciones de entrega</Label><Textarea id="notas-pedido" {...register('instrucciones_especiales')} /></div>
+              {errorValidacion && <p role="alert">{errorValidacion}</p>}
+              {error && <p role="alert" className="text-destructive">{error.message}</p>}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button type="submit" isLoading={isPending} disabled={!tiendas.length || !zonas.data?.length || isPending} data-cy="btn-crear-pedido">Crear pedido</Button>
+              </DialogFooter>
+            </fieldset>
+          </form>
+        </>}
       </DialogContent>
     </Dialog>
   );

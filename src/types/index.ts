@@ -42,8 +42,8 @@ export interface DireccionEntrega {
   zona_id: string;
   zona?: Zona;
   referencia?: string;
-  latitud: number;
-  longitud: number;
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface VentanaHoraria {
@@ -167,15 +167,20 @@ export interface RegistroRequest {
 }
 
 export interface CrearPedidoRequest {
-  tienda_id?: string;
-  cliente_nombre: string;
-  cliente_telefono: string;
+  proveedor_id: number;
+  items_comprados: { item_id: number; cantidad: number; variacion_item_id?: number }[];
   fecha_entrega: string;
-  ventana_horaria: VentanaHoraria;
-  zona_id: string;
-  direccion: Omit<DireccionEntrega, 'id' | 'zona'>;
-  notas?: string;
-  monto_total: number;
+  hora_entrega: string;
+  direccion: {
+    nombre_ubicacion: string;
+    direccion: string;
+    ciudad: string;
+    zona_id: number;
+    referencia?: string;
+    latitud?: number;
+    longitud?: number;
+  };
+  instrucciones_especiales?: string;
 }
 
 export interface CambiarEstadoRequest {

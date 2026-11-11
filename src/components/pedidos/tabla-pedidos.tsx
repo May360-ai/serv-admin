@@ -16,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   cn,
-  formatFecha,
   formatHora,
   formatMoneda,
   getEstadoColor,
@@ -24,6 +23,7 @@ import {
   truncarTexto,
 } from '@/lib/utils';
 import { useCambiarEstado } from '@/hooks/use-pedidos';
+import { useAuthStore } from '@/store/auth.store';
 
 const ACCIONES_POR_ESTADO: Record<EstadoPedido, EstadoPedido[]> = {
   pendiente: ['aceptado', 'cancelado'],
@@ -48,9 +48,11 @@ interface AccionesEstadoProps {
 }
 
 function AccionesEstado({ pedido }: AccionesEstadoProps) {
+  const usuario = useAuthStore(s => s.usuario);
   const { mutate: cambiarEstado, isPending } = useCambiarEstado();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const acciones = ACCIONES_POR_ESTADO[pedido.estado];
+  const acciones = usuario?.rol === 'proveedor' ? ACCIONES_POR_ESTADO[pedido.estado]
+    : usuario?.rol === 'cliente' && pedido.estado === 'pendiente' ? ['cancelado'] as EstadoPedido[] : [];
 
   if (acciones.length === 0) {
     return <span className="text-xs text-muted-foreground">—</span>;
@@ -187,7 +189,7 @@ export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-xs font-medium">{formatFecha(pedido.fecha_entrega)}</p>
+                  <p className="text-xs font-medium">{pedido.fecha_entrega ? new Intl.DateTimeFormat('es-EC', { timeZone: 'America/Guayaquil' }).format(new Date(`${pedido.fecha_entrega}T12:00:00-05:00`)) : 'Sin programación'}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatHora(pedido.ventana_horaria.desde)} - {formatHora(pedido.ventana_horaria.hasta)}
                   </p>

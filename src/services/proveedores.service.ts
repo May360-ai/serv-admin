@@ -1,5 +1,10 @@
 import { apiClient } from '@/lib/api-client';
 import type { Tienda, HorarioTienda } from '@/types';
+import { z } from 'zod';
+
+const proveedorSchema = z.object({
+  id: z.number().int().positive(), usuario_id: z.number().int().positive(), nombre_comercial: z.string(),
+}).passthrough();
 
 export const proveedoresService = {
   /**
@@ -15,24 +20,22 @@ export const proveedoresService = {
    * Obtiene la tienda vinculada al usuario autenticado.
    * Si proveedor_id no está disponible, busca por usuario_id en el listado.
    */
-  async obtenerMiTienda(proveedor_id?: string | number | null, usuario_id?: string): Promise<Tienda | null> {
-    try {
-      if (proveedor_id) {
-        const { data } = await apiClient.get<unknown>(`/api/proveedores/${proveedor_id}`);
-        const obj = (data as { data?: unknown; tienda?: unknown })?.data ?? (data as { tienda?: unknown })?.tienda ?? data;
-        if (obj) return obj as Tienda;
+  async obtenerMiTienda(proveedor_id?: string | number | null, usuario_id?: string | number): Promise<Tienda | null> {
+    if (!usuario_id) throw new Error('No se pudo identificar la tienda de esta sesión.');
+    if (proveedor_id) {
+      const { data } = await apiClient.get<unknown>(`/api/proveedores/${proveedor_id}`);
+      const resultado = proveedorSchema.safeParse(data);
+      if (!resultado.success) throw new Error('Respuesta de tienda inesperada.');
+      if (String(resultado.data.usuario_id) !== String(usuario_id) || String(resultado.data.id) !== String(proveedor_id)) {
+        throw new Error('La tienda recibida no corresponde a esta sesión.');
       }
-
-      const { data } = await apiClient.get<unknown>('/api/proveedores');
-      const lista = Array.isArray(data) ? data : ((data as { data?: unknown[] })?.data || []);
-      if (usuario_id) {
-        const encontrada = (lista as Array<{ usuario_id?: number }>).find(p => String(p.usuario_id) === String(usuario_id));
-        if (encontrada) return encontrada as Tienda;
-      }
-      return (lista[0] as Tienda) || null;
-    } catch {
-      return null;
+      return resultado.data as unknown as Tienda;
     }
+    const { data } = await apiClient.get<unknown>('/api/proveedores');
+    const resultado = z.array(proveedorSchema).safeParse(data);
+    if (!resultado.success) throw new Error('Respuesta de tiendas inesperada.');
+    const encontrada = resultado.data.find(proveedor => String(proveedor.usuario_id) === String(usuario_id));
+    return encontrada ? encontrada as unknown as Tienda : null;
   },
 
   /**

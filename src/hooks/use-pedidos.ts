@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useMemo } from 'react';
-import { pedidosService, crearRegistroPedido } from '@/services/pedidos.service';
+import { pedidosService, crearRegistroPedido, filtrarPedidos } from '@/services/pedidos.service';
 import { ContratoPedidosError } from '@/services/pedidos-contrato';
 import type { ItemCatalogo } from '@/services/items.service';
 import { useAuthStore } from '@/store/auth.store';
@@ -15,9 +15,11 @@ export const PEDIDOS_QUERY_KEY = 'pedidos' as const;
 
 export function usePedidosTienda(filtros?: FiltrosPedidos) {
   const usuario = useAuthStore(s => s.usuario);
+  const servidor = { estado: filtros?.estado };
   return useQuery({
-    queryKey: [PEDIDOS_QUERY_KEY, 'tienda', usuario?.id, usuario?.rol, filtros],
-    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => pedidosService.listarPedidosTienda(filtros, signal),
+    queryKey: [PEDIDOS_QUERY_KEY, 'tienda', usuario?.id, usuario?.rol, servidor],
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => pedidosService.listarPedidosTienda(servidor, signal),
+    select: resultado => filtrarPedidos(resultado.data, filtros),
     enabled: usuario?.rol === 'proveedor',
     ...sincronizacionPedidos(usuario?.rol),
   });
@@ -38,10 +40,12 @@ export function useMisPedidosCliente() {
 
 export function useTodosPedidos(filtros?: FiltrosPedidos) {
   const usuario = useAuthStore(s => s.usuario);
+  const servidor = { estado: usuario?.rol === 'proveedor' ? filtros?.estado : undefined };
   return useQuery({
     // Nombre conservado para despacho; el alcance siempre se decide por rol.
-    queryKey: [PEDIDOS_QUERY_KEY, usuario?.id, usuario?.rol, filtros],
-    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => pedidosService.listarPedidosPorRol(usuario?.rol, filtros, signal),
+    queryKey: [PEDIDOS_QUERY_KEY, usuario?.id, usuario?.rol, servidor],
+    queryFn: ({ signal }: { signal?: AbortSignal } = {}) => pedidosService.listarPedidosPorRol(usuario?.rol, servidor, signal),
+    select: resultado => filtrarPedidos(resultado.data, filtros),
     enabled: Boolean(usuario),
     retry: (intentos, error) => !(error instanceof ContratoPedidosError) && intentos < 2,
     ...sincronizacionPedidos(usuario?.rol),

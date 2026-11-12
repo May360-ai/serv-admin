@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ErrorConsulta } from '@/components/ui/error-consulta';
 
 const tiendaConfigSchema = z.object({
   nombre_comercial: z.string().min(2, 'Nombre comercial requerido'),
@@ -30,10 +31,10 @@ export default function TiendaConfiguracionPage() {
   const usuario = useAuthStore((s) => s.usuario);
   const queryClient = useQueryClient();
 
-  const { data: tienda, isLoading } = useQuery({
-    queryKey: ['mi-tienda', usuario?.proveedor_id, usuario?.id],
+  const { data: tienda, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['mi-tienda', usuario?.proveedor_id, usuario?.id, usuario?.rol],
     queryFn: () => proveedoresService.obtenerMiTienda(usuario?.proveedor_id, usuario?.id),
-    enabled: Boolean(usuario),
+    enabled: usuario?.rol === 'proveedor',
   });
 
   const {
@@ -110,6 +111,12 @@ export default function TiendaConfiguracionPage() {
       toast.error(`Error al guardar: ${err.message}`);
     },
   });
+
+  if (!usuario) return <p role="status">Cargando sesión…</p>;
+  if (usuario.rol !== 'proveedor') return <p role="alert">Esta vista requiere una sesión de proveedor.</p>;
+  if (isLoading) return <p role="status">Cargando datos de la tienda…</p>;
+  if (isError) return <ErrorConsulta error={error} reintentar={() => void refetch()} cargando={isFetching} />;
+  if (!tienda) return <p role="status">No hay una tienda vinculada a esta sesión.</p>;
 
   return (
     <div className="space-y-6 max-w-4xl">

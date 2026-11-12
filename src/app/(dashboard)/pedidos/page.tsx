@@ -12,12 +12,14 @@ import { Select } from '@/components/ui/select';
 import type { EstadoPedido } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { ContratoPedidosError } from '@/services/pedidos-contrato';
+import { ErrorHttp } from '@/lib/error-http';
 
 const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
   { value: 'pendiente', label: 'Pendiente' },
   { value: 'aceptado', label: 'Aceptado' },
   { value: 'agendado', label: 'Agendado' },
+  { value: 'en_progreso', label: 'En Progreso' },
   { value: 'en_camino', label: 'En Camino' },
   { value: 'completado', label: 'Completado' },
   { value: 'cancelado', label: 'Cancelado' },
@@ -97,6 +99,13 @@ export default function PedidosPage() {
         <Button
           variant="outline"
           size="sm"
+          onClick={() => { setBusqueda(''); setEstadoFiltro(''); setFechaFiltro(''); }}
+          disabled={!busqueda && !estadoFiltro && !fechaFiltro}
+        >Restablecer filtros</Button>
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => refetch()}
           className="ml-auto gap-2"
         >
@@ -108,7 +117,7 @@ export default function PedidosPage() {
       {/* Tabla */}
       {isError ? <div role="alert" className="rounded-lg border p-4 text-destructive">
         <p>{error.message}</p>
-        {!(error instanceof ContratoPedidosError) && <Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
+        {!(error instanceof ContratoPedidosError) && (!(error instanceof ErrorHttp) || error.reintentable) && <Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
       </div> : <TablaPedidos pedidos={pedidos} isLoading={!usuario || isLoading} />}
 
       {/* Modal accesible únicamente por rol cliente */}

@@ -11,7 +11,6 @@ import {
   Package,
   Plus,
   Check,
-  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { itemsService, type ItemCatalogo } from '@/services/items.service';
@@ -22,12 +21,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
+import { ErrorConsulta } from '@/components/ui/error-consulta';
 
 export default function CatalogoClientePage() {
   const [busqueda, setBusqueda] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<number | null>(null);
 
-  const { data: items = [], isLoading: cargandoItems } = useQuery<ItemCatalogo[]>({
+  const consultaItems = useQuery<ItemCatalogo[]>({
     queryKey: ['catalogo-items', categoriaSeleccionada],
     queryFn: () =>
       itemsService.listarCatalogo({
@@ -35,10 +35,13 @@ export default function CatalogoClientePage() {
       }),
   });
 
-  const { data: categorias = [] } = useQuery({
+  const consultaCategorias = useQuery({
     queryKey: ['catalogo-categorias'],
     queryFn: itemsService.listarCategorias,
   });
+
+  const { data: items = [], isLoading: cargandoItems } = consultaItems;
+  const { data: categorias = [] } = consultaCategorias;
 
   const { items: cartItems, agregarItem, obtenerTotalItems, obtenerTotal } = useCarritoStore();
 
@@ -48,7 +51,7 @@ export default function CatalogoClientePage() {
   // Filtro de búsqueda por texto en cliente
   const itemsFiltrados = items.filter((item) => {
     const texto = `${item.nombre} ${item.descripcion ?? ''} ${item.proveedores?.nombre_comercial ?? ''}`.toLowerCase();
-    return texto.includes(busqueda.toLowerCase());
+    return texto.includes(busqueda.trim().toLowerCase());
   });
 
   const handleAgregar = (item: ItemCatalogo) => {
@@ -94,6 +97,8 @@ export default function CatalogoClientePage() {
 
       {/* Buscador y Categorías */}
       <div className="space-y-3">
+        {consultaCategorias.isLoading && <p role="status">Cargando categorías…</p>}
+        {consultaCategorias.isError && <ErrorConsulta error={consultaCategorias.error} reintentar={() => void consultaCategorias.refetch()} cargando={consultaCategorias.isFetching} />}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
@@ -135,7 +140,7 @@ export default function CatalogoClientePage() {
       </div>
 
       {/* Grid de Productos */}
-      {cargandoItems ? (
+      {consultaItems.isError ? <ErrorConsulta error={consultaItems.error} reintentar={() => void consultaItems.refetch()} cargando={consultaItems.isFetching} /> : cargandoItems ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-64 w-full rounded-xl" />

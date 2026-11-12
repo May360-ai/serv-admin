@@ -20,6 +20,13 @@ const asignacionesSchema = z.object({ data: z.array(z.object({
   id: z.string().min(1), fecha_entrega: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   repartidor_id: idSchema,
 })) });
+const rutasSchema = z.object({ success: z.literal(true), data: z.array(z.object({
+  id: z.string().min(1), nombre: z.string(), fecha_entrega: z.string(), zona_id: z.string(),
+  capacidad_maxima: z.number().int().positive(), estado: z.string(),
+  pedidos: z.array(z.object({ id: z.string(), estado: z.string(), cliente_nombre: z.string(),
+    direccion: z.object({ calle: z.string().nullish(), ciudad: z.string().nullish() }).passthrough(),
+  }).passthrough()),
+}).passthrough()) });
 
 export const rutasService = {
   /** Activos no implica disponibles: este endpoint no informa ocupación por fecha. */
@@ -48,8 +55,9 @@ export const rutasService = {
     const { data } = await apiClient.get<unknown>(
       `/api/rutas?${params.toString()}`
     );
-    const lista = Array.isArray(data) ? data : (data as { data?: unknown[] })?.data || [];
-    return lista as Ruta[];
+    const resultado = rutasSchema.safeParse(data);
+    if (!resultado.success) throw new Error('Respuesta de rutas inesperada.');
+    return resultado.data.data as unknown as Ruta[];
   },
 
   /**

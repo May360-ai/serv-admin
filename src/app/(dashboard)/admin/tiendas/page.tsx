@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { consultarTiendas, RespuestaTiendasInvalida } from './consulta-tiendas';
+import { ErrorHttp } from '@/lib/error-http';
 
 export default function AdminTiendasPage() {
   const { data: tiendas = [], isLoading, isError, error, refetch, isFetching } = useQuery({
@@ -34,11 +35,11 @@ export default function AdminTiendasPage() {
         <EmptyState
           role="alert"
           title={error instanceof RespuestaTiendasInvalida ? 'Respuesta inesperada' : 'No se pudieron cargar las tiendas'}
-          description={error instanceof RespuestaTiendasInvalida
+          description={error instanceof RespuestaTiendasInvalida || error instanceof ErrorHttp
             ? error.message
             : 'Ocurrió un error al consultar las tiendas. Vuelve a intentarlo.'}
           icon={<AlertCircle className="h-10 w-10 text-destructive" />}
-          action={<Button variant="outline" onClick={() => void refetch()} isLoading={isFetching}>Reintentar</Button>}
+          action={(!(error instanceof ErrorHttp) || error.reintentable) ? <Button variant="outline" onClick={() => void refetch()} isLoading={isFetching}>Reintentar</Button> : undefined}
           className="py-16 bg-card border border-dashed rounded-lg"
         />
       ) : tiendas.length === 0 ? (

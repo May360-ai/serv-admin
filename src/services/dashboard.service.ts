@@ -3,24 +3,14 @@ import type { MetricasDashboard } from '@/types';
 
 export const dashboardService = {
   async obtenerMetricas(): Promise<MetricasDashboard> {
-    try {
-      const { data } = await apiClient.get<unknown>('/api/dashboard/metricas');
-      const obj = (data as { data?: MetricasDashboard })?.data ?? (data as MetricasDashboard);
-      if (obj && typeof obj.pedidos_hoy === 'number') {
-        return obj;
-      }
-    } catch {
-      // Si el endpoint no está disponible en el backend original, devolvemos métricas base
+    const { data } = await apiClient.get<unknown>('/api/dashboard/metricas');
+    const obj = (data as { data?: MetricasDashboard })?.data ?? data;
+    const campos = ['pedidos_hoy', 'pedidos_pendientes', 'pedidos_en_camino', 'pedidos_completados',
+      'rutas_activas', 'repartidores_disponibles', 'ingresos_hoy'] as const;
+    if (!obj || typeof obj !== 'object' || campos.some(campo =>
+      !(campo in obj) || !Number.isFinite((obj as MetricasDashboard)[campo]))) {
+      throw new Error('Respuesta de métricas inesperada.');
     }
-
-    return {
-      pedidos_hoy: 0,
-      pedidos_pendientes: 0,
-      pedidos_en_camino: 0,
-      pedidos_completados: 0,
-      rutas_activas: 0,
-      repartidores_disponibles: 3,
-      ingresos_hoy: 0,
-    };
+    return obj as MetricasDashboard;
   },
 };

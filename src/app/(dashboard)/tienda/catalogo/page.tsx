@@ -29,16 +29,10 @@ import {
 } from '@/components/ui/dialog';
 import { formatMoneda } from '@/lib/utils';
 import type { Categoria } from '@/types';
-
-interface ItemProducto {
-  id: number | string;
-  nombre: string;
-  descripcion?: string;
-  precio: number | string;
-  inventario_stock?: number;
-  imagen_url?: string;
-  activo?: boolean;
-}
+import { itemsService, type ItemCatalogo } from '@/services/items.service';
+import { proveedoresService } from '@/services/proveedores.service';
+import { zonasService } from '@/services/zonas.service';
+import { ErrorConsulta } from '@/components/ui/error-consulta';
 
 const nuevoItemSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -61,43 +55,28 @@ export default function CatalogoPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   // Categorías para el selector
-  const { data: categorias = [] } = useQuery<Categoria[]>({
+  const consultaCategorias = useQuery<Categoria[]>({
     queryKey: ['categorias-datos'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<Categoria[] | { data: Categoria[] }>('/api/datos/categorias');
-      if (Array.isArray(data)) return data;
-      return (data as { data: Categoria[] })?.data ?? [];
-    },
+    queryFn: zonasService.listarCategorias,
     staleTime: 300_000,
   });
 
   // Lista de productos del proveedor
-  const { data: items = [], isLoading } = useQuery<ItemProducto[]>({
-    queryKey: ['items-tienda', usuario?.proveedor_id, usuario?.id],
+  const consultaItems = useQuery<ItemCatalogo[]>({
+    queryKey: ['items-tienda', usuario?.proveedor_id, usuario?.id, usuario?.rol],
     queryFn: async () => {
-      // 1. Usar proveedor_id si ya lo tenemos
-      let targetProvId = usuario?.proveedor_id;
-
-      // 2. Si no viene en el token, resolverlo consultando /api/proveedores
-      if (!targetProvId && usuario?.id) {
-        try {
-          const { data: provs } = await apiClient.get<Array<{ id: number; usuario_id?: number }>>('/api/proveedores');
-          const miProv = Array.isArray(provs) ? provs.find((p) => String(p.usuario_id) === String(usuario.id)) : null;
-          if (miProv) {
-            targetProvId = String(miProv.id);
-          }
-        } catch {
-          // Ignorar y consultar por query estándar
-        }
+      const tienda = await proveedoresService.obtenerMiTienda(usuario?.proveedor_id, usuario?.id);
+      if (!tienda) throw new Error('No hay una tienda vinculada a esta sesión.');
+      const productos = await itemsService.listarCatalogo({ proveedor_id: Number(tienda.id) });
+      if (productos.some(item => String(item.proveedor_id) !== String(tienda.id))) {
+        throw new Error('El catálogo recibido no corresponde a esta tienda.');
       }
-
-      const url = targetProvId ? `/api/items?proveedor_id=${targetProvId}` : '/api/items';
-      const { data } = await apiClient.get<ItemProducto[] | { data: ItemProducto[] }>(url);
-      if (Array.isArray(data)) return data;
-      return (data as { data: ItemProducto[] })?.data ?? [];
+      return productos;
     },
-    enabled: Boolean(usuario),
+    enabled: usuario?.rol === 'proveedor',
   });
+  const { data: categorias = [] } = consultaCategorias;
+  const { data: items = [], isLoading } = consultaItems;
 
   const { mutate: crearItem, isPending } = useMutation({
     mutationFn: async (body: NuevoItemForm) => {
@@ -141,6 +120,9 @@ export default function CatalogoPage() {
     crearItem(formData);
   };
 
+  if (!usuario) return <p role="status">Cargando sesión…</p>;
+  if (usuario.rol !== 'proveedor') return <p role="alert">Esta vista requiere una sesión de proveedor.</p>;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -157,6 +139,7 @@ export default function CatalogoPage() {
           <Button
             onClick={() => setModalOpen(true)}
             data-cy="btn-nuevo-producto"
+            disabled={consultaItems.isError || consultaCategorias.isError || consultaCategorias.isLoading}
             className="gap-2 shadow-sm"
           >
             <Plus className="h-4 w-4" />
@@ -166,7 +149,9 @@ export default function CatalogoPage() {
       </div>
 
       {/* Lista de Productos */}
-      {isLoading ? (
+      {consultaCategorias.isLoading && <p role="status">Cargando categorías…</p>}
+      {consultaCategorias.isError && <ErrorConsulta error={consultaCategorias.error} reintentar={() => void consultaCategorias.refetch()} cargando={consultaCategorias.isFetching} />}
+      {consultaItems.isError ? <ErrorConsulta error={consultaItems.error} reintentar={() => void consultaItems.refetch()} cargando={consultaItems.isFetching} /> : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-44 rounded-lg" />
@@ -179,7 +164,7 @@ export default function CatalogoPage() {
           icon={<Package className="h-10 w-10 text-muted-foreground" />}
           action={
             <RoleGuard allowedRoles={['proveedor']}>
-              <Button onClick={() => setModalOpen(true)} className="gap-2">
+              <Button onClick={() => setModalOpen(true)} className="gap-2" disabled={consultaCategorias.isError || consultaCategorias.isLoading}>
                 <Plus className="h-4 w-4" />
                 Agregar mi primer producto
               </Button>
@@ -308,7 +293,7 @@ export default function CatalogoPage() {
               >
                 Cancelar
               </Button>
-              <Button type="submit" isLoading={isPending} className="gap-2">
+              <Button type="submit" isLoading={isPending} disabled={consultaCategorias.isError || consultaCategorias.isLoading} className="gap-2">
                 <Check className="h-4 w-4" />
                 Guardar Producto
               </Button>

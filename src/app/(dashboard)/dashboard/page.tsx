@@ -15,6 +15,8 @@ import { dashboardService } from '@/services/dashboard.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
+import { ErrorConsulta } from '@/components/ui/error-consulta';
+import { useAuthStore } from '@/store/auth.store';
 
 interface MetricaCardProps {
   titulo: string;
@@ -49,12 +51,20 @@ function MetricaCard({ titulo, valor, descripcion, icon: Icon, colorClass, isLoa
 }
 
 export default function DashboardPage() {
-  const { data: metricas, isLoading } = useQuery({
-    queryKey: ['dashboard-metricas'],
+  const usuario = useAuthStore(s => s.usuario);
+  const autorizado = usuario?.rol === 'administrador';
+  const { data: metricas, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['dashboard-metricas', usuario?.id, usuario?.rol],
     queryFn: dashboardService.obtenerMetricas,
+    enabled: autorizado,
+    gcTime: 0,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+
+  if (!usuario) return <p role="status">Cargando sesión…</p>;
+  if (!autorizado) return <p role="alert">Esta vista requiere una sesión de administrador.</p>;
+  if (isError) return <ErrorConsulta error={error} reintentar={() => void refetch()} cargando={isFetching} />;
 
   const metricsConfig = [
     {

@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api-client';
 import type { Zona, ApiResponse } from '@/types';
+import { ErrorConsulta } from '@/components/ui/error-consulta';
 
 const zonaSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -212,7 +213,7 @@ function CardZona({ zona }: CardZonaProps) {
 export default function ZonasPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { data: zonas = [], isLoading } = useQuery({
+  const { data: zonas = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['zonas'],
     queryFn: zonasService.listarZonas,
     staleTime: 60_000,
@@ -233,7 +234,7 @@ export default function ZonasPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isError ? <ErrorConsulta error={error} reintentar={() => void refetch()} cargando={isFetching} /> : isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-36 w-full rounded-lg" />

@@ -16,11 +16,11 @@ const pedidoCliente = z.object({
   })).optional(),
 });
 
-export async function consultarMisPedidos(clienteId: string, signal?: AbortSignal) {
+export async function consultarMisPedidos(clienteId: string | number, signal?: AbortSignal) {
   const { data } = await apiClient.get<unknown>('/api/pedidos/mis-pedidos', { signal });
   const result = z.array(pedidoCliente).safeParse(data);
   if (!result.success) throw new Error('No se pudieron confirmar los estados: respuesta de pedidos inesperada.');
-  if (result.data.some(pedido => String(pedido.cliente_id) !== clienteId)) {
+  if (result.data.some(pedido => String(pedido.cliente_id) !== String(clienteId))) {
     throw new Error('La respuesta no corresponde a los pedidos de esta sesión.');
   }
   return result.data;

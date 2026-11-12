@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { ErrorHttp } from './error-http';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -50,6 +51,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
     const isLoginEndpoint = error.config?.url?.includes('/api/auth/login');
     if (error.response?.status === 401 && !isLoginEndpoint) {
       removeToken();
@@ -57,13 +59,7 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    const data = error.response?.data as { mensaje?: string; error?: string } | undefined;
-    const mensaje =
-      data?.error ??
-      data?.mensaje ??
-      error.message ??
-      'Error desconocido';
-    return Promise.reject(new Error(mensaje));
+    return Promise.reject(new ErrorHttp(error.response?.status));
   }
 );
 

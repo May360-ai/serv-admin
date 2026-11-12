@@ -51,16 +51,21 @@ function normalizarPedido(value: unknown): Pedido {
   };
 }
 
-async function listar(endpoint: string, filtros?: FiltrosPedidos, signal?: AbortSignal): Promise<PaginatedResponse<Pedido>> {
-  const { data } = await apiClient.get<unknown>(endpoint, { signal });
-  if (!Array.isArray(data)) throw new Error('Respuesta de pedidos inesperada: se esperaba un arreglo');
-  const pedidos = data.map(normalizarPedido).filter(p => {
+/** El backend entrega el listado completo del rol, sin paginación de servidor. */
+export function filtrarPedidos(listado: Pedido[], filtros?: FiltrosPedidos): PaginatedResponse<Pedido> {
+  const pedidos = listado.filter(p => {
     const texto = filtros?.busqueda?.trim().toLocaleLowerCase();
     return (!filtros?.estado || p.estado === filtros.estado) && (!filtros?.fecha || p.fecha_entrega === filtros.fecha) &&
       (!filtros?.zona_id || p.zona_id === filtros.zona_id) &&
-      (!texto || `${p.numero_pedido} ${p.cliente_nombre} ${p.direccion.calle}`.toLocaleLowerCase().includes(texto));
+      (!texto || `${p.numero_pedido} ${p.cliente_nombre} ${p.direccion.calle} ${p.direccion.ciudad}`.toLocaleLowerCase().includes(texto));
   });
   return { data: pedidos, total: pedidos.length, pagina: 1, por_pagina: pedidos.length };
+}
+
+async function listar(endpoint: string, filtros?: FiltrosPedidos, signal?: AbortSignal): Promise<PaginatedResponse<Pedido>> {
+  const { data } = await apiClient.get<unknown>(endpoint, { signal });
+  if (!Array.isArray(data)) throw new Error('Respuesta de pedidos inesperada: se esperaba un arreglo');
+  return filtrarPedidos(data.map(normalizarPedido), filtros);
 }
 
 export const pedidosService = {

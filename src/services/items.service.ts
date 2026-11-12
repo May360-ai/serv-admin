@@ -1,4 +1,10 @@
 import { apiClient } from '@/lib/api-client';
+import { z } from 'zod';
+
+const categoriasSchema = z.array(z.object({
+  id: z.number().int().positive(), nombre: z.string(), descripcion: z.string().nullable(),
+  imagen_url: z.string().nullable().optional(),
+}));
 
 export interface ItemCatalogo {
   id: number;
@@ -61,12 +67,9 @@ export const itemsService = {
    * Obtiene las categorías de productos/servicios.
    */
   async listarCategorias(): Promise<Categoria[]> {
-    try {
-      const { data } = await apiClient.get<Categoria[] | { data: Categoria[] }>('/api/datos/categorias');
-      if (Array.isArray(data)) return data;
-      return (data as { data: Categoria[] })?.data ?? [];
-    } catch {
-      return [];
-    }
+    const { data } = await apiClient.get<unknown>('/api/datos/categorias');
+    const resultado = categoriasSchema.safeParse(data);
+    if (!resultado.success) throw new Error('Respuesta de categorías inesperada.');
+    return resultado.data;
   },
 };

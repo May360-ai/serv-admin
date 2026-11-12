@@ -7,6 +7,7 @@ const PUBLIC_PREFIXES = ['/login', '/registro', '/unauthorized'];
 
 // Rutas con acceso restringido estricto por rol
 const ROLE_REQUIRED_ROUTES: { prefix: string; roles: Role[] }[] = [
+  { prefix: '/pedidos', roles: ['administrador', 'cliente', 'proveedor', 'repartidor'] },
   { prefix: '/entregas', roles: ['repartidor'] },
   { prefix: '/admin', roles: ['admin', 'administrador'] },
   { prefix: '/tienda', roles: ['proveedor'] },

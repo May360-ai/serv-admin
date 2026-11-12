@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { Route, LogOut, X } from 'lucide-react';
 import { MENU_BY_ROLE } from './navigation';
@@ -14,7 +15,13 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  return <Suspense fallback={<aside className="hidden w-56 shrink-0 lg:block" aria-label="Cargando navegación" />}>
+    <SidebarContenido {...props} />
+  </Suspense>;
+}
+
+function SidebarContenido({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const usuario = useAuthStore((s) => s.usuario);
   const rol = (usuario?.rol as Role | undefined) ?? 'proveedor';

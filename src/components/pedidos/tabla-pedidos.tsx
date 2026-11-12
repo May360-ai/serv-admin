@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   MoreHorizontal,
   CheckCircle2,
@@ -157,7 +158,7 @@ export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-semibold text-muted-foreground">
-                      #{pedido.numero_pedido}
+                      <Link href={`/pedidos/${pedido.id}`} className="underline">#{pedido.numero_pedido}</Link>
                     </span>
                     {pedido.ultimo_minuto && (
                       <Badge variant="warning" className="text-xs py-0">!</Badge>

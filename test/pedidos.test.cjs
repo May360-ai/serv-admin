@@ -198,7 +198,11 @@ function uiSetup(t, rol = 'cliente') {
     } },
     '@/store/auth.store': { useAuthStore: selector => selector({ usuario: actor }) },
     '@/lib/api-client': { apiClient: {
-      get: async url => { requests.push(['GET', url]); return { data: url.startsWith('/api/pedidos/') ? [raw] : [item] }; },
+      get: async url => { requests.push(['GET', url]);
+        if (url.startsWith('/api/pedidos?')) return { data: { success: true, data: [{ ...raw, codigo_seguimiento: null, ruta_id: null,
+          usuarios: { nombre: 'Cliente QA', apellido: null }, proveedores: { nombre_comercial: 'Tienda QA' } }],
+          meta: { page: 1, page_size: 20, total: 1, total_pages: 1 } } };
+        return { data: url.startsWith('/api/pedidos/') ? [raw] : [item] }; },
       post: async (url, body) => { requests.push(['POST', url, body]);
         if (url === '/api/datos/direcciones') return { data: { id: 9 } };
         if (fail) throw new Error('Stock insuficiente de API');
@@ -298,12 +302,12 @@ for (const [rol, endpoint] of [['cliente', '/api/pedidos/mis-pedidos'], ['provee
     assert.deepEqual(app.requests, [['GET', endpoint]]);
   });
 }
-test('D04 hook: administración informa contrato faltante sin reintentar ni consultar la tienda', async t => {
+test('D04/5.1 hook: administración consume contrato global real sin fallback de tienda', async t => {
   const app = uiSetup(t, 'administrador');
   app.pageHtml();
-  await assert.rejects(async () => app.query().queryFn(), app.ContratoPedidosError);
+  assert.equal((await app.query().queryFn()).meta.total, 1);
   assert.equal(app.query().retry(0, new app.ContratoPedidosError('Sin contrato')), false);
-  assert.deepEqual(app.requests, []);
+  assert.deepEqual(app.requests, [['GET', '/api/pedidos?page=1&page_size=20']]);
 });
 test('Regresión checkout: conserva UI y carrito al fallar; comparte dirección confirmada y payload correcto al reintentar', async t => {
   const app = uiSetup(t);

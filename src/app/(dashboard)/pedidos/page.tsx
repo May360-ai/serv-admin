@@ -13,6 +13,7 @@ import type { EstadoPedido } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { ContratoPedidosError } from '@/services/pedidos-contrato';
 import { ErrorHttp } from '@/lib/error-http';
+import { PedidosAdministracion } from '@/components/pedidos/pedidos-administracion';
 
 const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -36,9 +37,10 @@ export default function PedidosPage() {
     busqueda: busqueda || undefined,
     estado: estadoFiltro || undefined,
     fecha: fechaFiltro || undefined,
-  });
+  }, usuario?.rol !== 'administrador');
 
   const pedidos = data?.data ?? [];
+  if (usuario?.rol === 'administrador') return <PedidosAdministracion key={String(usuario.id)} />;
 
   return (
     <div className="space-y-6">

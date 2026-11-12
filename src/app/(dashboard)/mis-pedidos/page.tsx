@@ -64,7 +64,7 @@ export default function MisPedidosPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
                       <span className="font-mono font-bold text-base text-foreground">
-                        Pedido #{p.numero_pedido || `PED-${p.id}`}
+                        <Link href={`/pedidos/${p.id}`} className="underline">Pedido #{p.numero_pedido || `PED-${p.id}`}</Link>
                       </span>
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${getEstadoColor(

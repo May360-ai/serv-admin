@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { useAuthStore } from '@/store/auth.store';
+import Link from 'next/link';
 
 interface MetricaCardProps {
   titulo: string;
@@ -130,6 +131,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Resumen operativo del día</p>
+        <Link href="/pedidos" className="text-sm underline">Supervisar pedidos</Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

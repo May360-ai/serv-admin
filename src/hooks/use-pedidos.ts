@@ -38,7 +38,7 @@ export function useMisPedidosCliente() {
   });
 }
 
-export function useTodosPedidos(filtros?: FiltrosPedidos) {
+export function useTodosPedidos(filtros?: FiltrosPedidos, habilitado = true) {
   const usuario = useAuthStore(s => s.usuario);
   const servidor = { estado: usuario?.rol === 'proveedor' ? filtros?.estado : undefined };
   return useQuery({
@@ -46,7 +46,7 @@ export function useTodosPedidos(filtros?: FiltrosPedidos) {
     queryKey: [PEDIDOS_QUERY_KEY, usuario?.id, usuario?.rol, servidor],
     queryFn: ({ signal }: { signal?: AbortSignal } = {}) => pedidosService.listarPedidosPorRol(usuario?.rol, servidor, signal),
     select: resultado => filtrarPedidos(resultado.data, filtros),
-    enabled: Boolean(usuario),
+    enabled: Boolean(usuario) && habilitado,
     retry: (intentos, error) => !(error instanceof ContratoPedidosError) && intentos < 2,
     ...sincronizacionPedidos(usuario?.rol),
   });

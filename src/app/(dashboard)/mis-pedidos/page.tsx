@@ -1,62 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { PackageCheck, Clock, MapPin, Store, ShoppingBag } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { useMisPedidosCliente } from '@/hooks/use-pedidos';
+import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatFecha, formatMoneda, getEstadoColor, getEstadoLabel } from '@/lib/utils';
-import type { EstadoPedido } from '@/types';
-
-interface DetallePedidoBackend {
-  id: number;
-  cantidad: number;
-  precio_unitario: string | number;
-  subtotal: string | number;
-  items?: {
-    nombre: string;
-    es_servicio?: boolean;
-  };
-}
-
-interface PedidoClienteBackend {
-  id: number;
-  numero_pedido?: string;
-  total: string | number;
-  subtotal: string | number;
-  costo_envio: string | number;
-  fecha_creacion: string;
-  fecha_programada?: string | null;
-  instrucciones_especiales?: string | null;
-  proveedores?: {
-    nombre_comercial: string;
-    logo_url?: string | null;
-  };
-  estados_pedido?: {
-    nombre: string;
-  };
-  direcciones?: {
-    direccion: string;
-    ciudad: string;
-    referencia?: string | null;
-  };
-  detalle_pedido?: DetallePedidoBackend[];
-}
 
 export default function MisPedidosPage() {
-  const { data: pedidos = [], isLoading } = useQuery<PedidoClienteBackend[]>({
-    queryKey: ['mis-pedidos-cliente'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<PedidoClienteBackend[] | { data: PedidoClienteBackend[] }>(
-        '/api/pedidos/mis-pedidos'
-      );
-      if (Array.isArray(data)) return data;
-      return (data as { data: PedidoClienteBackend[] })?.data ?? [];
-    },
-  });
+  const usuario = useAuthStore(s => s.usuario);
+  const { data: pedidos = [], isLoading, isError, error, refetch, isFetching } = useMisPedidosCliente();
+  if (!usuario) return <p role="status">Cargando sesión…</p>;
+  if (usuario.rol !== 'cliente') return <p role="alert">Esta vista requiere una sesión de cliente.</p>;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -64,7 +22,7 @@ export default function MisPedidosPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Mis Pedidos y Envíos</h1>
           <p className="text-muted-foreground text-sm">
-            Rastreo de tus entregas en tiempo real y colecciones de productos comprados
+            Estados confirmados por el servidor, con actualización periódica
           </p>
         </div>
 
@@ -76,23 +34,28 @@ export default function MisPedidosPage() {
         </Link>
       </div>
 
+      {isError && <div role="alert" className="rounded-lg border p-4 text-destructive">
+        <p>{error.message}</p>
+        {pedidos.length > 0 && <p>Se muestran los últimos estados confirmados; no se pudo actualizar la consulta.</p>}
+        <Button variant="outline" isLoading={isFetching} onClick={() => void refetch()}>Reintentar</Button>
+      </div>}
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-36 w-full rounded-xl" />
           ))}
         </div>
-      ) : pedidos.length === 0 ? (
+      ) : pedidos.length === 0 ? (isError ? null : (
         <EmptyState
           title="No tenés pedidos en curso"
-          description="Cuando compres en una tienda de la red SERV, tus envíos aparecerán acá para su seguimiento en vivo."
+          description="Cuando compres en una tienda de la red SERV, tus envíos aparecerán acá para consultar su estado."
           icon={<PackageCheck className="h-10 w-10 text-muted-foreground" />}
           className="py-16 bg-card border border-dashed rounded-xl"
         />
-      ) : (
+      )) : (
         <div className="space-y-4">
           {pedidos.map((p) => {
-            const estadoNombre = (p.estados_pedido?.nombre || 'pendiente') as EstadoPedido;
+            const estadoNombre = p.estados_pedido.nombre;
             const detalles = p.detalle_pedido ?? [];
 
             return (
@@ -166,7 +129,7 @@ export default function MisPedidosPage() {
                       <span>
                         {p.fecha_programada
                           ? `Entrega: ${formatFecha(p.fecha_programada)}`
-                          : `Registrado: ${formatFecha(p.fecha_creacion)}`}
+                          : p.fecha_creacion ? `Registrado: ${formatFecha(p.fecha_creacion)}` : 'Fecha no informada'}
                       </span>
                     </div>
                   </div>

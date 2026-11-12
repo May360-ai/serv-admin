@@ -51,8 +51,8 @@ function normalizarPedido(value: unknown): Pedido {
   };
 }
 
-async function listar(endpoint: string, filtros?: FiltrosPedidos): Promise<PaginatedResponse<Pedido>> {
-  const { data } = await apiClient.get<unknown>(endpoint);
+async function listar(endpoint: string, filtros?: FiltrosPedidos, signal?: AbortSignal): Promise<PaginatedResponse<Pedido>> {
+  const { data } = await apiClient.get<unknown>(endpoint, { signal });
   if (!Array.isArray(data)) throw new Error('Respuesta de pedidos inesperada: se esperaba un arreglo');
   const pedidos = data.map(normalizarPedido).filter(p => {
     const texto = filtros?.busqueda?.trim().toLocaleLowerCase();
@@ -64,17 +64,17 @@ async function listar(endpoint: string, filtros?: FiltrosPedidos): Promise<Pagin
 }
 
 export const pedidosService = {
-  listarPedidosTienda(filtros?: FiltrosPedidos) {
+  listarPedidosTienda(filtros?: FiltrosPedidos, signal?: AbortSignal) {
     const params = new URLSearchParams();
     if (filtros?.estado) params.set('estado', filtros.estado);
-    return listar(`/api/pedidos/tienda${params.size ? `?${params}` : ''}`, filtros);
+    return listar(`/api/pedidos/tienda${params.size ? `?${params}` : ''}`, filtros, signal);
   },
-  listarPedidosCliente(filtros?: FiltrosPedidos) {
-    return listar('/api/pedidos/mis-pedidos', filtros);
+  listarPedidosCliente(filtros?: FiltrosPedidos, signal?: AbortSignal) {
+    return listar('/api/pedidos/mis-pedidos', filtros, signal);
   },
-  listarPedidosPorRol(rol: Usuario['rol'] | undefined, filtros?: FiltrosPedidos) {
-    if (rol === 'cliente') return this.listarPedidosCliente(filtros);
-    if (rol === 'proveedor') return this.listarPedidosTienda(filtros);
+  listarPedidosPorRol(rol: Usuario['rol'] | undefined, filtros?: FiltrosPedidos, signal?: AbortSignal) {
+    if (rol === 'cliente') return this.listarPedidosCliente(filtros, signal);
+    if (rol === 'proveedor') return this.listarPedidosTienda(filtros, signal);
     throw new ContratoPedidosError(rol === 'admin' || rol === 'administrador'
       ? 'La API no ofrece un listado global de pedidos para administración.'
       : 'Tu sesión no permite consultar este listado de pedidos.');

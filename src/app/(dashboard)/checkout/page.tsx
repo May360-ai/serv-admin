@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { zonasService } from '@/services/zonas.service';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,7 @@ import { formatMoneda } from '@/lib/utils';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const usuario = useAuthStore(s => s.usuario);
   const registrar = useMemo(() => crearRegistroPedido(usuario?.id), [usuario?.id]);
   const {
@@ -85,6 +86,8 @@ export default function CheckoutPage() {
         items_comprados: items.map(i => ({ item_id: Number(i.item_id), cantidad: i.cantidad })),
       }, usuario, catalogo);
 
+      void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      void queryClient.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
       toast.success(pedido.ruta_id ? 'Pedido asignado a una ruta de entrega.' : 'Pedido registrado, pendiente de asignación.');
       vaciarCarrito();
       router.push('/mis-pedidos');

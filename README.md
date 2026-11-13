@@ -1,6 +1,16 @@
 # SERV · Aplicación web
 
-Con la API de Serv en ejecución, instala las dependencias con `npm ci` e inicia Next.js con `npm run dev`. La web escucha en el puerto 3000 y usa la API del puerto 4000 de forma predeterminada.
+## Cómo ejecutar
+
+Con `Serv` en `http://localhost:4000` y `NEXT_PUBLIC_API_URL=http://localhost:4000` en `.env.local`:
+
+```powershell
+cd serv-admin
+npm install
+npm run dev
+```
+
+Panel en `http://localhost:3000`. `npm test` para pruebas. `npm run build` + `npm start` para producción.
 
 ## Dónde trabajar
 

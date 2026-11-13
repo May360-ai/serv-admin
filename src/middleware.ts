@@ -83,6 +83,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
   }
 
+  if (userRole === 'repartidor' && (pathname === '/rutas' || pathname.startsWith('/rutas/'))) {
+    return NextResponse.redirect(new URL('/entregas', request.url));
+  }
+
   // 6. Validar permisos de acceso según matriz RBAC
   for (const rule of ROLE_REQUIRED_ROUTES) {
     if (pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`)) {

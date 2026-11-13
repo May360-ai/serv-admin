@@ -57,7 +57,8 @@ export const ROLE_ROUTES: Record<Role, readonly string[]> = {
     '/chat',
   ],
   repartidor: [
-    '/rutas',
+    '/entregas',
+    '/pedidos',
     '/chat',
   ],
 } as const;
@@ -68,7 +69,7 @@ export const DEFAULT_ROLE_REDIRECT: Record<Role, string> = {
   administrador: '/admin/metricas',
   proveedor: '/tienda/rutas',
   cliente: '/catalogo',
-  repartidor: '/rutas',
+  repartidor: '/entregas',
 };
 
 // Rutas públicas que no requieren autenticación

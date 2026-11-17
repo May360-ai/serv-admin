@@ -260,6 +260,9 @@ export interface MetricasDashboard {
 // ---- Eventos Socket ----
 
 export interface SocketEventMap {
+  connect: undefined;
+  despacho_actualizado: undefined;
+  ubicacion_ruta_actualizada: { ruta_id: string };
   mensaje_recibido: MensajeChat;
   nuevo_mensaje: unknown;
   estado_pedido_actualizado: { pedido_id: string; estado: EstadoPedido };

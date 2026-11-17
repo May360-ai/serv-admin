@@ -55,12 +55,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       void queryClient.invalidateQueries({ queryKey: ['rutas'] });
     };
+    const actualizarUbicacion = ({ ruta_id }: { ruta_id: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ['ubicacion-ruta', usuario.id, usuario.proveedor_id, ruta_id] });
+    };
     on('pedido_registrado', actualizarDespacho);
     on('ruta_actualizada', actualizarDespacho);
+    on('despacho_actualizado', actualizarDespacho);
+    on('ubicacion_ruta_actualizada', actualizarUbicacion);
+    on('connect', actualizarDespacho);
     on('estado_pedido_actualizado', handleEstadoUpdate);
     return () => {
       off('pedido_registrado', actualizarDespacho);
       off('ruta_actualizada', actualizarDespacho);
+      off('despacho_actualizado', actualizarDespacho);
+      off('ubicacion_ruta_actualizada', actualizarUbicacion);
+      off('connect', actualizarDespacho);
       off('estado_pedido_actualizado', handleEstadoUpdate);
     };
   }, [usuario, on, off, queryClient]);

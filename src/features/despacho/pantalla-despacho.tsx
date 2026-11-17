@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { zonasService } from '@/services/zonas.service';
 import type { Ruta } from '@/types';
 import { EntregasAtrasadas } from './entregas-atrasadas';
+import { MapaRepartidores } from './mapa-repartidores';
 
 export default function RutasPage() {
   const queryClient = useQueryClient();
@@ -164,6 +165,7 @@ export default function RutasPage() {
         </Button>
       </div>
 
+      <MapaRepartidores rutas={rutas} />
       <EntregasAtrasadas zona={zonaSeleccionada} />
       {/* Layout dividido */}
       <div className="flex flex-1 flex-col gap-4 min-h-0 lg:flex-row">

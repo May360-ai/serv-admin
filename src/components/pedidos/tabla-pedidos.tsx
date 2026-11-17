@@ -34,6 +34,7 @@ const ACCIONES_POR_ESTADO: Record<EstadoPedido, EstadoPedido[]> = {
   en_camino: ['completado', 'cancelado'],
   completado: [],
   cancelado: [],
+  fallido: [],
 };
 
 const ICONO_ACCION: Record<string, React.ElementType> = {

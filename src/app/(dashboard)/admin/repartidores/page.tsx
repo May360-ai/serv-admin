@@ -1,84 +1,103 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Users, Plus, Bike, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Suspense, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth.store';
+import { getFechaHoy } from '@/features/despacho/despacho.store';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import type { Repartidor } from '@/types';
+import { Input } from '@/components/ui/input';
+import { ErrorHttp } from '@/lib/error-http';
+
+const repartidoresSchema = z.object({ data: z.array(z.object({
+  id: z.number().int(), nombre: z.string(), apellido: z.string().nullable(),
+  email: z.string(), telefono: z.string().nullable(), vehiculo: z.string().nullable(),
+  estado: z.enum(['activo', 'inactivo']),
+  rutas: z.array(z.object({ id: z.string(), estado: z.string() })),
+})) });
 
 export default function AdminRepartidoresPage() {
-  const [modalOpen, setModalOpen] = useState(false);
+  return <Suspense fallback={<p role="status">Cargando gestión de repartidores…</p>}><GestionRepartidores /></Suspense>;
+}
 
-  // Lista de repartidores activos
-  const repartidores: Repartidor[] = [
-    {
-      id: '1',
-      nombre: 'Lucas Benítez',
-      telefono: '+54 11 5566-7788',
-      estado: 'disponible',
-      vehiculo: 'Moto Honda Wave 110cc',
+function GestionRepartidores() {
+  const usuario = useAuthStore(state => state.usuario);
+  const client = useQueryClient();
+  const [fecha, setFecha] = useState(getFechaHoy);
+  const [formulario, setFormulario] = useState(false);
+  const permitido = usuario?.rol === 'administrador' || usuario?.rol === 'admin';
+  const consulta = useQuery({
+    queryKey: ['flota', usuario?.id, fecha],
+    enabled: permitido && Boolean(fecha),
+    queryFn: async ({ signal }) => {
+      const { data } = await apiClient.get<unknown>('/api/repartidores', { params: { fecha }, signal });
+      return repartidoresSchema.parse(data).data;
     },
-    {
-      id: '2',
-      nombre: 'Martín Paredes',
-      telefono: '+54 11 2233-4455',
-      estado: 'en_ruta',
-      vehiculo: 'Moto Yamaha YBR 125cc',
+  });
+  const actualizar = () => {
+    for (const key of ['flota', 'repartidores-despacho', 'repartidores-reprogramacion']) {
+      void client.invalidateQueries({ queryKey: [key] });
+    }
+  };
+  const crear = useMutation({
+    mutationFn: async (form: HTMLFormElement) => {
+      await apiClient.post('/api/repartidores', Object.fromEntries(new FormData(form)));
     },
-    {
-      id: '3',
-      nombre: 'Gonzalo Silva',
-      telefono: '+54 11 9988-1122',
-      estado: 'disponible',
-      vehiculo: 'Furgoneta Fiorino',
+    onSuccess: () => { setFormulario(false); actualizar(); },
+  });
+  const cambiarEstado = useMutation({
+    mutationFn: async ({ id, estado }: { id: number; estado: string }) => {
+      await apiClient.patch(`/api/repartidores/${id}/estado`, { estado });
     },
-  ];
+    onSuccess: actualizar,
+  });
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestión de Repartidores</h1>
-          <p className="text-muted-foreground text-sm">
-            Monitoreo y alta de conductores para la flota de última milla
-          </p>
-        </div>
-        <Button onClick={() => setModalOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo Repartidor
-        </Button>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {repartidores.map((rep) => (
-          <Card key={rep.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Bike className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base truncate">{rep.nombre}</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{rep.telefono}</p>
-                </div>
-                <Badge variant={rep.estado === 'disponible' ? 'success' : 'warning'}>
-                  {rep.estado === 'disponible' ? 'Disponible' : 'En Ruta'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md bg-muted/40 p-2.5 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground">Vehículo registrado:</p>
-                <p className="mt-0.5">{rep.vehiculo ?? 'Sin especificar'}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+  if (!permitido) return <p role="alert">Esta gestión requiere una cuenta de administración.</p>;
+  return <div className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-2xl font-bold">Gestión de repartidores</h1>
+      <Button onClick={() => { crear.reset(); setFormulario(true); }}>Nuevo repartidor</Button>
     </div>
-  );
+    {formulario && <form className="space-y-4 rounded-lg border bg-card p-4" onSubmit={event => {
+      event.preventDefault();
+      crear.mutate(event.currentTarget);
+    }}>
+      <h2 className="text-lg font-semibold">Registrar repartidor</h2>
+      <fieldset disabled={crear.isPending} className="grid gap-3 sm:grid-cols-2">
+        <label>Nombre<Input name="nombre" required maxLength={100} autoFocus autoComplete="given-name" /></label>
+        <label>Apellido<Input name="apellido" maxLength={100} autoComplete="family-name" /></label>
+        <label>Correo electrónico<Input name="email" type="email" required maxLength={150} autoComplete="email" /></label>
+        <label>Teléfono<Input name="telefono" type="tel" maxLength={20} autoComplete="tel" /></label>
+        <label>Vehículo<Input name="vehiculo" maxLength={150} /></label>
+        <label>Contraseña inicial<Input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" /></label>
+      </fieldset>
+      {crear.isError && <p role="alert">{crear.error instanceof ErrorHttp && crear.error.status === 409 ? 'El correo ya está registrado.' : crear.error.message}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" isLoading={crear.isPending}>Registrar</Button>
+        <Button type="button" variant="outline" disabled={crear.isPending} onClick={() => setFormulario(false)}>Cancelar</Button>
+      </div>
+    </form>}
+    <label className="block max-w-xs">Consultar asignaciones del día
+      <Input type="date" value={fecha} onChange={event => setFecha(event.target.value)} required />
+    </label>
+    {!fecha && <p role="status">Selecciona una fecha para consultar la disponibilidad.</p>}
+    {consulta.isLoading && <p role="status">Consultando repartidores…</p>}
+    {consulta.isError && <p role="alert">No se pudo cargar la flota. <Button variant="outline" onClick={() => consulta.refetch()}>Reintentar</Button></p>}
+    {cambiarEstado.isError && <p role="alert">{cambiarEstado.error.message}. Si tiene rutas pendientes, reasígnalas desde Despacho.</p>}
+    {consulta.isSuccess && consulta.data.length === 0 && <p>No hay repartidores registrados.</p>}
+    <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {consulta.data?.map(rep => <li key={rep.id} className="space-y-2 rounded-lg border bg-card p-4">
+        <h2 className="break-words font-semibold">{rep.nombre} {rep.apellido}</h2>
+        <p className="break-all text-sm">{rep.email}</p>
+        {rep.telefono && <p className="text-sm">{rep.telefono}</p>}
+        {rep.vehiculo && <p className="text-sm">{rep.vehiculo}</p>}
+        <p>{rep.estado === 'inactivo' ? 'Cuenta inactiva' : rep.rutas.length ? 'Con ruta asignada para esta fecha' : 'Disponible para esta fecha'}</p>
+        {rep.rutas.map(ruta => <p key={ruta.id} className="text-sm">Ruta {ruta.estado.replaceAll('_', ' ')}</p>)}
+        <Button variant="outline" disabled={cambiarEstado.isPending} onClick={() => cambiarEstado.mutate({
+          id: rep.id, estado: rep.estado === 'activo' ? 'inactivo' : 'activo',
+        })}>{rep.estado === 'activo' ? 'Desactivar cuenta' : 'Activar cuenta'}</Button>
+      </li>)}
+    </ul>
+  </div>;
 }

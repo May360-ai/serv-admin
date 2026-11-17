@@ -3,7 +3,7 @@ import { apiClient } from '@/lib/api-client';
 import type { EstadoPedido } from '@/types';
 import type { Usuario } from '@/types';
 
-export const estadoConsulta = z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado']);
+export const estadoConsulta = z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado', 'fallido']);
 const id = z.number().int().positive().max(2147483647);
 const fecha = z.string().refine(value => Number.isFinite(+new Date(value)));
 const importe = z.union([z.string().min(1), z.number()]).refine(value => Number.isFinite(Number(value)));

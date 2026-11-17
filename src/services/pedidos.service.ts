@@ -14,7 +14,7 @@ const pedidoSchema = z.object({
   total: z.union([z.number(), z.string()]).refine(value => Number.isFinite(Number(value))),
   fecha_creacion: fechaSchema, fecha_programada: fechaSchema.nullable().optional(),
   instrucciones_especiales: z.string().nullable().optional(),
-  estados_pedido: z.object({ nombre: z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado']) }),
+  estados_pedido: z.object({ nombre: z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado', 'fallido']) }),
   usuarios: z.object({ nombre: z.string(), apellido: z.string().nullable().optional(), telefono: z.string().nullable().optional() }).optional(),
   direcciones: z.object({ id: idSchema, direccion: z.string(), ciudad: z.string(), zona_id: idSchema.nullable().optional(),
     referencia: z.string().nullable().optional(),

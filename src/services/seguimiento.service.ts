@@ -7,7 +7,7 @@ const pedidoCliente = z.object({
   id: z.number().int().positive(), cliente_id: z.number().int().positive(), numero_pedido: z.string().optional(),
   total: dinero, subtotal: dinero, costo_envio: dinero.nullable(), fecha_creacion: fecha.nullable(),
   fecha_programada: fecha.nullable().optional(), instrucciones_especiales: z.string().nullable().optional(),
-  estados_pedido: z.object({ nombre: z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado']) }),
+  estados_pedido: z.object({ nombre: z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado', 'fallido']) }),
   proveedores: z.object({ nombre_comercial: z.string(), logo_url: z.string().nullable().optional() }).nullish(),
   direcciones: z.object({ direccion: z.string(), ciudad: z.string(), referencia: z.string().nullable().optional() }).nullish(),
   detalle_pedido: z.array(z.object({

@@ -24,6 +24,7 @@ const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
   { value: 'en_camino', label: 'En Camino' },
   { value: 'completado', label: 'Completado' },
   { value: 'cancelado', label: 'Cancelado' },
+  { value: 'fallido', label: 'Entrega fallida' },
 ];
 
 export default function PedidosPage() {

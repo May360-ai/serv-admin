@@ -45,6 +45,7 @@ export function getEstadoColor(estado: EstadoPedido): string {
     en_camino: 'bg-orange-100 text-orange-800 border-orange-200',
     completado: 'bg-green-100 text-green-800 border-green-200',
     cancelado: 'bg-red-100 text-red-800 border-red-200',
+    fallido: 'bg-red-100 text-red-800 border-red-200',
   };
   return colores[estado];
 }
@@ -58,6 +59,7 @@ export function getEstadoLabel(estado: EstadoPedido): string {
     en_camino: 'En Camino',
     completado: 'Completado',
     cancelado: 'Cancelado',
+    fallido: 'Entrega fallida',
   };
   return labels[estado];
 }

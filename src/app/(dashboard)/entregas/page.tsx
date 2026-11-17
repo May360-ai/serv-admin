@@ -30,14 +30,15 @@ export default function EntregasPage() {
     {consulta.isError && <p role="alert">No se pudieron cargar tus entregas. <button onClick={() => consulta.refetch()}>Reintentar</button></p>}
     {consulta.data?.length === 0 && <p>No tienes salidas asignadas para hoy.</p>}
     {consulta.data?.map(ruta => {
-      const siguiente = ruta.pedidos.find(p => !['completado', 'cancelado'].includes(p.estado));
+      const siguiente = ruta.pedidos.find(p => !['completado', 'cancelado', 'fallido'].includes(p.estado));
       return <article key={ruta.id} className="rounded-lg border bg-card p-5">
         <h2 className="text-xl font-semibold">{ruta.zona?.nombre}</h2>
         {ruta.fecha_entrega < fecha && <p className="font-medium">Entrega atrasada del {ruta.fecha_entrega}. Si ya entregaste, confirma la entrega.</p>}
         <ol className="divide-y">{ruta.pedidos.map(p => <li key={p.id} className="py-4">
-          <p className="text-sm text-muted-foreground">Parada {p.orden_en_ruta} · {p.ventana_horaria.desde}</p>
+          <p className="text-sm text-muted-foreground">Parada {p.orden_en_ruta} · {p.ventana_horaria?.desde ?? 'Sin hora'}</p>
           <h3 className="font-semibold">{p.direccion.calle}</h3>
           <p>{p.cliente_nombre} · {p.estado === 'completado' ? 'Entregado' : p.estado.replaceAll('_', ' ')}</p>
+          {p.motivo_fallo && <p>Motivo: {p.motivo_fallo}</p>}
           <div className="mt-3 flex flex-wrap gap-3 text-sm">
             <Link className="rounded underline underline-offset-4 focus-visible:outline focus-visible:outline-2" href={`/chat?pedido=${encodeURIComponent(p.id)}&contacto=cliente`}>Contactar al cliente</Link>
             <Link className="rounded underline underline-offset-4 focus-visible:outline focus-visible:outline-2" href={`/chat?pedido=${encodeURIComponent(p.id)}&contacto=tienda`}>Contactar a la tienda</Link>

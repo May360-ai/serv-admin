@@ -6,6 +6,7 @@ export type EstadoPedido =
   | 'agendado'
   | 'en_progreso'
   | 'en_camino'
+  | 'fallido'
   | 'completado'
   | 'cancelado';
 
@@ -52,6 +53,7 @@ export interface VentanaHoraria {
 }
 
 export interface Pedido {
+  motivo_fallo?: string | null;
   id: string;
   numero_pedido: string;
   cliente_id?: string;

@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select';
 import { getFechaHoy } from './despacho.store';
 import type { Ruta } from '@/types';
 
-type Historial = { id: number; pedido_id: number; fecha_anterior: string; fecha_nueva: string; motivo: string; repartidor_anterior_id: number; repartidor_nuevo_id: number };
+type Historial = { id: number; pedido_id: number; fecha_anterior: string; fecha_nueva: string; motivo: string; motivo_intento?: string | null; repartidor_anterior_id: number; repartidor_nuevo_id: number };
 
 export function EntregasAtrasadas({ zona }: { zona: string | null }) {
   const client = useQueryClient();
@@ -42,14 +42,15 @@ export function EntregasAtrasadas({ zona }: { zona: string | null }) {
   });
   const cantidad = consulta.data?.reduce((total, ruta) => total + ruta.pedidos.length, 0) ?? 0;
   return <section className="space-y-4 rounded-lg border bg-card p-4" aria-labelledby="titulo-atrasadas">
-    <h2 id="titulo-atrasadas" className="text-lg font-semibold">Entregas atrasadas ({cantidad})</h2>
-    <p className="text-sm text-muted-foreground">Pedidos de días anteriores sin completar, aunque ya tengan ruta asignada.</p>
+    <h2 id="titulo-atrasadas" className="text-lg font-semibold">Entregas por reprogramar ({cantidad})</h2>
+    <p className="text-sm text-muted-foreground">Entregas atrasadas y entregas fallidas que requieren otro intento.</p>
     {consulta.isLoading && <p role="status">Consultando entregas atrasadas…</p>}
     {consulta.isError && <p role="alert">No se pudieron cargar. <Button variant="outline" onClick={() => consulta.refetch()}>Reintentar</Button></p>}
-    {consulta.isSuccess && cantidad === 0 && <p>No hay entregas atrasadas en esta zona.</p>}
+    {consulta.isSuccess && cantidad === 0 && <p>No hay entregas por reprogramar en esta zona.</p>}
     <ul className="divide-y">{consulta.data?.flatMap(ruta => ruta.pedidos.map(pedido => <li key={pedido.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
       <div className="min-w-0 break-words"><p className="font-medium">{pedido.numero_pedido} · {pedido.cliente_nombre}</p>
-        <p className="text-sm">{ruta.fecha_entrega} · {ruta.repartidor?.nombre} · {pedido.estado.replaceAll('_', ' ')}</p></div>
+        <p className="text-sm">{ruta.fecha_entrega} · {ruta.repartidor?.nombre} · {pedido.motivo_fallo ? 'Entrega fallida' : pedido.estado.replaceAll('_', ' ')}</p>
+        {pedido.motivo_fallo && <p className="text-sm">Motivo: {pedido.motivo_fallo}</p>}</div>
       <Button variant="outline" disabled={guardar.isPending} onClick={() => { guardar.reset(); setSeleccion({ ruta, pedido }); }}>Reprogramar</Button>
     </li>))}</ul>
     {seleccion && <form key={seleccion.pedido.id} className="space-y-3 rounded-md border p-4" onSubmit={event => { event.preventDefault(); guardar.mutate(event.currentTarget); }}>
@@ -78,6 +79,7 @@ export function EntregasAtrasadas({ zona }: { zona: string | null }) {
       <ul className="divide-y">{historial.data?.map(item => <li key={item.id} className="break-words py-3 text-sm">
         <p>Pedido {item.pedido_id}: {new Date(item.fecha_anterior).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })} → {new Date(item.fecha_nueva).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}</p>
         <p>Repartidor {item.repartidor_anterior_id} → {item.repartidor_nuevo_id}. {item.motivo}</p>
+        {item.motivo_intento && <p>Motivo del intento fallido: {item.motivo_intento}</p>}
       </li>)}</ul>
     </details>
   </section>;

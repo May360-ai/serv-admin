@@ -20,6 +20,7 @@ import { zonasService } from '@/services/zonas.service';
 import type { Ruta } from '@/types';
 import { EntregasAtrasadas } from './entregas-atrasadas';
 import { MapaRepartidores } from './mapa-repartidores';
+import { UbicacionesEntrega } from './ubicaciones-entrega';
 
 export default function RutasPage() {
   const queryClient = useQueryClient();
@@ -165,6 +166,7 @@ export default function RutasPage() {
         </Button>
       </div>
 
+      <div><UbicacionesEntrega rutas={rutas} /></div>
       <MapaRepartidores rutas={rutas} />
       <EntregasAtrasadas zona={zonaSeleccionada} />
       {/* Layout dividido */}

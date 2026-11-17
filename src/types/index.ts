@@ -43,8 +43,8 @@ export interface DireccionEntrega {
   zona_id: string;
   zona?: Zona;
   referencia?: string;
-  latitud?: number;
-  longitud?: number;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface VentanaHoraria {

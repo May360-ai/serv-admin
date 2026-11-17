@@ -1,5 +1,9 @@
 # SERV · Aplicación web
 
+## Trabajo con agentes de IA
+
+Lee [CONTEXTO.md](CONTEXTO.md) para conocer el sistema, sus reglas y un mensaje de inicio para tu agente. [AGENTS.md](AGENTS.md) describe los módulos y verificaciones de la web. Si tu herramienta no los carga automáticamente, indícale que lea ambos antes de trabajar. No se requieren chats anteriores ni skills locales de otro integrante.
+
 ## Cómo ejecutar
 
 Con `Serv` en `http://localhost:4000` y `NEXT_PUBLIC_API_URL=http://localhost:4000` en `.env.local`:

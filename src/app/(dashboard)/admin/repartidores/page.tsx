@@ -15,6 +15,7 @@ const repartidoresSchema = z.object({ data: z.array(z.object({
   id: z.number().int(), nombre: z.string(), apellido: z.string().nullable(),
   email: z.string(), telefono: z.string().nullable(), vehiculo: z.string().nullable(),
   estado: z.enum(['activo', 'inactivo']),
+  calificacion_promedio: z.number().nullable().optional(), cantidad_resenas: z.number().optional(),
   rutas: z.array(z.object({ id: z.string(), estado: z.string() })),
 })) });
 
@@ -91,6 +92,7 @@ function GestionRepartidores() {
     <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {paginado.datos.map(rep => <li key={rep.id} className="space-y-2 rounded-lg border bg-card p-4">
         <h2 className="break-words font-semibold">{rep.nombre} {rep.apellido}</h2>
+        <p className="text-sm">{rep.calificacion_promedio != null ? `${rep.calificacion_promedio.toFixed(1)}/5 · ${rep.cantidad_resenas ?? 0} entregas valoradas` : 'Sin valoraciones de entregas'}</p>
         <p className="break-all text-sm">{rep.email}</p>
         {rep.telefono && <p className="text-sm">{rep.telefono}</p>}
         {rep.vehiculo && <p className="text-sm">{rep.vehiculo}</p>}

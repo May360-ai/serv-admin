@@ -23,6 +23,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
+import { ImagenProducto } from '@/components/pedidos/producto-edicion';
+import { ResenasProducto } from '@/components/pedidos/valoraciones';
 
 export default function CatalogoClientePage() {
   const [busqueda, setBusqueda] = useState('');
@@ -173,6 +175,9 @@ export default function CatalogoClientePage() {
                 className="overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow border-border"
               >
                 <div className="p-5 space-y-3">
+                  <ImagenProducto producto={item} />
+                  <p className="text-sm">{item.calificacion_promedio != null ? `${item.calificacion_promedio.toFixed(1)}/5 · ${item.cantidad_resenas ?? 0} reseñas del producto` : 'Producto sin reseñas'}</p>
+                  <ResenasProducto itemId={item.id} />
                   {/* Tienda header */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5 font-medium truncate">

@@ -8,6 +8,7 @@ import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoneda, getEstadoLabel } from '@/lib/utils';
 import { FotoPrivada } from './foto-privada';
+import { ResenaRepartidor, ResenasProducto } from './valoraciones';
 import { MapaSeguimientoPedido } from './mapa-seguimiento-pedido';
 
 function fechaConfirmada(value: string | null) {
@@ -57,6 +58,10 @@ export function DetallePedido({ pedidoId }: { pedidoId: string }) {
         {verImportes && linea.subtotal !== undefined && <span> · Subtotal: {formatMoneda(Number(linea.subtotal))}</span>}
       </li>)}</ul> : <p>No hay productos registrados en este pedido.</p>}
     </CardContent></Card>
+    {pedido.estados_pedido.nombre === 'completado' && <div className="space-y-4">
+      {pedido.ruta && <ResenaRepartidor pedidoId={pedido.id} />}
+      {usuario.rol === 'cliente' && <div className="space-y-2"><h2 className="font-semibold">Valorar los productos recibidos</h2>{pedido.detalle_pedido.map(linea => <div key={linea.id} className="flex flex-wrap items-center gap-2"><span>{linea.items.nombre}</span><ResenasProducto itemId={linea.items.id} /></div>)}</div>}
+    </div>}
     {verImportes && <Card><CardHeader><CardTitle>Importes</CardTitle></CardHeader><CardContent>
       {(['subtotal', 'costo_envio', 'impuesto', 'descuento', 'total'] as const).map(campo => <p key={campo}>
         {({ subtotal: 'Subtotal', costo_envio: 'Envío', impuesto: 'Impuesto', descuento: 'Descuento', total: 'Total' })[campo]}: {pedido[campo] == null ? 'No informado' : formatMoneda(Number(pedido[campo]))}

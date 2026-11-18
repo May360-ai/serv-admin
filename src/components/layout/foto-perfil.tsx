@@ -12,7 +12,7 @@ export function FotoPerfil() {
   const usuario = useAuthStore(s => s.usuario);
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
-  const perfil = useQuery({ queryKey: ['mi-perfil', usuario?.id], enabled: !!usuario, queryFn: async () => (await apiClient.get<{ foto_actualizada: string | null }>('/api/perfil')).data });
+  const perfil = useQuery({ queryKey: ['mi-perfil', usuario?.id], enabled: !!usuario, queryFn: async () => (await apiClient.get<{ foto_actualizada: string | null; calificacion_promedio?: number | null; cantidad_resenas?: number }>('/api/perfil')).data });
   const guardar = useMutation({ mutationFn: async (file: File | null) => {
     if (!file) await apiClient.delete('/api/perfil/foto');
     else await apiClient.put('/api/perfil/foto', await prepararFoto(file), { headers: { 'Content-Type': 'image/jpeg' } });
@@ -22,6 +22,7 @@ export function FotoPerfil() {
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="w-[calc(100vw-2rem)] sm:w-96" onClose={() => setOpen(false)} aria-labelledby="titulo-perfil">
       <DialogHeader><DialogTitle id="titulo-perfil">Mi foto de perfil</DialogTitle></DialogHeader>
       <p className="mb-3">{usuario?.nombre}</p>
+      {usuario?.rol === 'repartidor' && <p className="mb-3 text-sm">{perfil.data?.calificacion_promedio != null ? `${perfil.data.calificacion_promedio.toFixed(1)}/5 · ${perfil.data.cantidad_resenas ?? 0} entregas valoradas` : 'Sin valoraciones de entregas'}</p>}
       {perfil.data?.foto_actualizada ? <FotoPrivada key={usuario?.id} path="/api/perfil/foto" alt="Tu foto de perfil" revision={perfil.data.foto_actualizada} /> : <p>Tu perfil todavía no tiene foto.</p>}
       <label className="my-3 block">Seleccionar foto<input type="file" accept="image/jpeg,image/png,image/webp" disabled={guardar.isPending} className="mt-2 block w-full text-sm" onChange={event => {
         const file = event.target.files?.[0]; if (file) guardar.mutate(file); event.target.value = '';

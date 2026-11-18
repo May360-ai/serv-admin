@@ -34,6 +34,8 @@ import { proveedoresService } from '@/services/proveedores.service';
 import { zonasService } from '@/services/zonas.service';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
+import { EdicionProducto, ImagenProducto } from '@/components/pedidos/producto-edicion';
+import { ResenasProducto } from '@/components/pedidos/valoraciones';
 
 const nuevoItemSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -194,6 +196,7 @@ export default function CatalogoPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
+                <ImagenProducto producto={prod} />
                 <div className="flex items-center justify-between text-sm pt-3 border-t border-border">
                   <span className="font-bold text-foreground">
                     {formatMoneda(Number(prod.precio))}
@@ -202,6 +205,7 @@ export default function CatalogoPage() {
                     Stock: {prod.inventario_stock ?? 0} un.
                   </span>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2"><EdicionProducto producto={prod} /><ResenasProducto itemId={prod.id} /></div>
               </CardContent>
             </Card>
           ))}

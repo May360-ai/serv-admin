@@ -80,3 +80,14 @@ Si tu herramienta no carga AGENTS.md automáticamente, pega este mensaje al inic
 Para repartir tareas, delimitar por módulo y contrato: por ejemplo, API de flota, pantalla web de flota o presentación Android. Coordinar primero si dos tareas cambian el mismo endpoint o esquema. Trabajar en ramas por tarea y revisar el diff antes de integrar.
 
 Esta guía existe en los tres repositorios para que funcione con clones independientes. Cuando cambie una regla compartida, actualizar sus tres copias. No depende del historial de un chat, skills locales ni archivos de otra computadora. Los documentos académicos originales no se incluyen aquí; esta guía describe el código verificado y no reemplaza sus requisitos.
+
+
+## Fotos, catálogo y valoraciones (18 de noviembre de 2026)
+
+Android organiza el trabajo en Mapa, Pedidos y Ayuda. El detalle muestra cliente, productos, cantidades, referencias e instrucciones; Ayuda abre el chat con la tienda que despacha ese pedido. Las cantidades describen el contenido, no peso ni volumen. Los perfiles admiten una foto propia en web y Android. El repartidor captura un comprobante antes de confirmar: la API lo exige incluso en la excepción de despacho; cliente y tienda lo ven en el detalle. Las pruebas físicas de esta versión Android quedan pendientes por decisión del usuario.
+
+Migraciones aditivas: `fotos-usuarios-entregas.sql`, luego `catalogo-stock-resenas.sql`, regenerar Prisma y reiniciar API. Imágenes binarias de hasta 5 MB, normalizadas a JPEG sin metadatos y hasta 600 KB por foto. Perfil y comprobante requieren autorización; la imagen del producto activo es pública. Los binarios se guardan en tablas BYTEA con RLS y sin acceso directo anon/authenticated; revisar retención y almacenamiento de objetos antes de escalar.
+
+La tienda edita stock e imagen desde su catálogo. Stock exige valor anterior, nuevo entero no negativo y motivo; una comparación atómica rechaza conflictos (409) para no pisar compras simultáneas y registra auditoría. Servicios sin stock físico. El cliente reseña productos recibidos: una valoración editable por producto/cliente, 1–5 y comentario hasta 1000 caracteres. También valora al repartidor de cada pedido completado, conservando la identidad de quien entregó en la evidencia; editar no agrega votos ni sobrescribe la valoración de tienda. Perfil y flota muestran promedio/cantidad.
+
+Paginación de catálogo, tiendas, flota y listados comunes de pedidos en web: recorte local de los datos ya consultados; administración conserva su listado de pedidos paginado en servidor. Android pagina diez pedidos por ruta. Chat pagina 50 mensajes por cursor `antes_de`; reseñas de producto diez por página en servidor. No describir los listados locales como consultas paginadas de base de datos.

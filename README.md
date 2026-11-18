@@ -40,6 +40,16 @@ Verificación: `npm test`, `npx tsc --noEmit` y `npm run build`.
 
 El repartidor web obtiene una ubicación nueva al confirmar entregas; la API comprueba cercanía, antigüedad y precisión. Si el navegador no tiene permiso, la señal es imprecisa o el destino no tiene punto, conserva el estado y muestra cómo continuar. Despacho ofrece **Confirmaciones de entrega** para autorizar una excepción con motivo y confirmación explícita de recepción, y consultar actor/fecha/motivo de las confirmaciones de las rutas seleccionadas. Completar desde el cambio genérico de estado se retiró para evitar omitir el control. Consulta el README de la API para la migración y los límites configurables.
 
+## Catálogo, perfiles y valoraciones
+
+El catálogo de tienda permite **Editar stock e imagen**. El ajuste exige motivo y compara el stock anterior en la API; si cambió por otra operación, hay que cargar el valor actual y revisarlo. Las imágenes de producto son públicas; las fotos de perfil y comprobantes se leen autenticadas. Cada usuario gestiona su foto desde la barra lateral. Cliente y tienda ven el comprobante en el detalle del pedido.
+
+El catálogo muestra promedio, cantidad y reseñas de producto, con diez reseñas por página desde la API. Solo el cliente que recibió el producto puede guardar o editar su valoración. El detalle de un pedido completado permite valorar a su repartidor; administración consulta el promedio en flota y el repartidor en su perfil.
+
+Catálogo, tiendas y flota presentan doce elementos por página; los listados comunes de pedidos, diez. Es paginación local sobre las respuestas completas, mientras el listado global de administración ya pagina en servidor. El chat recupera los últimos cincuenta mensajes y permite cargar los anteriores por cursor.
+
+Requiere las migraciones `fotos-usuarios-entregas.sql` y `catalogo-stock-resenas.sql` de la API y regenerar Prisma. Consulta su README para contratos y límites de almacenamiento.
+
 ## Acceso demo en desarrollo
 
 El backend carga los datos base con `npm run seed`. Para crear las cuatro cuentas demo, configura `SERV_DEMO_PASSWORD` en su archivo privado de entorno y ejecuta `npm run seed:demo`. En el frontend, los botones del login aparecen en desarrollo cuando `NEXT_PUBLIC_SERV_DEMO_PASSWORD` en `.env.local` coincide con esa clave. Cualquier persona con acceso a esta web de desarrollo puede usar los cuatro roles, incluido administración. Usa este flujo únicamente en un entorno de demostración.

@@ -7,6 +7,9 @@ const categoriasSchema = z.array(z.object({
 }));
 
 export interface ItemCatalogo {
+  foto_producto?: { actualizada_en: string } | null;
+  calificacion_promedio?: number | null;
+  cantidad_resenas?: number;
   id: number;
   proveedor_id: number;
   categoria_id: number;

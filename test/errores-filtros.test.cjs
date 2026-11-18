@@ -153,6 +153,7 @@ function pageSetup(name, rol = 'cliente') {
   let usuario = { id: '3', rol, proveedor_id: '8' };
   const defaults = { data: [], isSuccess: true, refetch() {} };
   const load = loader({
+    './punto-entrega': { PuntoEntrega: () => null },
     react: { ...React, useState: initial => {
       const key = cursor++; if (!(key in states)) states[key] = initial;
       return [states[key], value => { states[key] = value; }];

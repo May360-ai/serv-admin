@@ -179,8 +179,8 @@ export interface CrearPedidoRequest {
     ciudad: string;
     zona_id: number;
     referencia?: string;
-    latitud?: number;
-    longitud?: number;
+    latitud: number;
+    longitud: number;
   };
   instrucciones_especiales?: string;
 }

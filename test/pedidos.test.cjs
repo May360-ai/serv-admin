@@ -35,7 +35,7 @@ const item = { id: 11, proveedor_id: 8, nombre: 'Producto QA', activo: true, inv
 const usuario = { id: '3', rol: 'cliente', nombre: 'Cliente QA' };
 const datos = { proveedor_id: 8, items_comprados: [{ item_id: 11, cantidad: 2 }],
   fecha_entrega: '2026-11-12', hora_entrega: '23:59',
-  direccion: { nombre_ubicacion: 'Casa', direccion: 'Calle Prueba 42', ciudad: 'Ambato', zona_id: 2, referencia: 'Puerta azul' },
+  direccion: { nombre_ubicacion: 'Casa', direccion: 'Calle Prueba 42', ciudad: 'Ambato', zona_id: 2, referencia: 'Puerta azul', latitud: -1.249, longitud: -78.615 },
   instrucciones_especiales: 'Llamar al llegar' };
 const raw = { id: 10, proveedor_id: 8, cliente_id: 3, total: '16.50',
   fecha_creacion: '2026-11-11T18:00:00.000Z', fecha_programada: '2026-11-13T04:59:00.000Z',
@@ -90,6 +90,11 @@ for (const [caso, cambios] of [
   ['ciudad vacía', { direccion: { ...datos.direccion, ciudad: ' ' } }],
   ['dirección vacía', { direccion: { ...datos.direccion, direccion: '' } }],
   ['zona vacía', { direccion: { ...datos.direccion, zona_id: 0 } }],
+  ['sin punto', { direccion: { ...datos.direccion, latitud: undefined, longitud: undefined } }],
+  ['coordenadas incompletas', { direccion: { ...datos.direccion, longitud: undefined } }],
+  ['coordenada no finita', { direccion: { ...datos.direccion, latitud: NaN } }],
+  ['otra ciudad', { direccion: { ...datos.direccion, ciudad: 'Buenos Aires' } }],
+  ['texto sin calle', { direccion: { ...datos.direccion, direccion: '123456' } }],
 ]) {
   test(`D02/D03: rechaza ${caso} antes de crear dirección o pedido`, async () => {
     const app = apiSetup();
@@ -192,10 +197,12 @@ function uiSetup(t, rol = 'cliente') {
   const state = [];
   const actor = { ...usuario, rol };
   const load = loader({
-    react: { ...React, useMemo: factory => memo ?? (memo = factory()), useState: initial => {
+    react: { ...React, useCallback: fn => fn, useMemo: factory => memo ?? (memo = factory()), useState: initial => {
       const index = cursor++; if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial;
       return [state[index], value => { state[index] = value; }];
     } },
+    './punto-entrega': { PuntoEntrega: () => null },
+    '@/components/pedidos/punto-entrega': { PuntoEntrega: () => null },
     '@/store/auth.store': { useAuthStore: selector => selector({ usuario: actor }) },
     '@/lib/api-client': { apiClient: {
       get: async url => { requests.push(['GET', url]);
@@ -217,7 +224,7 @@ function uiSetup(t, rol = 'cliente') {
       obtenerSubtotal: () => 14, obtenerCostoEnvio: () => 2.5, obtenerTotal: () => 16.5,
     }) },
     'react-hook-form': {
-      useForm: options => ({ control: {}, register: name => ({ name }), reset: () => { resets++; }, formState: { errors: formErrors },
+      useForm: options => ({ control: {}, register: name => ({ name }), reset: () => { resets++; }, setValue() {}, formState: { errors: formErrors },
         handleSubmit: callback => async event => {
           event.preventDefault(); const result = await options.resolver(formValues, {}, { fields: {}, shouldUseNativeValidation: false });
           formErrors = result.errors; if (!Object.keys(result.errors).length) callback(result.values);
@@ -311,9 +318,10 @@ test('D04/5.1 hook: administración consume contrato global real sin fallback de
 });
 test('Regresión checkout: conserva UI y carrito al fallar; comparte dirección confirmada y payload correcto al reintentar', async t => {
   const app = uiSetup(t);
-  for (const [id, value] of [['calle', 'Calle Prueba 42'], ['ciudad', 'Ambato'], ['zona', '2'], ['fecha_entrega', '2026-11-12'], ['hora_entrega', '23:59']]) {
+  for (const [id, value] of [['calle', 'Calle Prueba 42'], ['zona', '2'], ['fecha_entrega', '2026-11-12'], ['hora_entrega', '23:59']]) {
     find(app.checkoutTree(), node => node.props.id === id).props.onChange({ target: { value } });
   }
+  find(app.checkoutTree(), node => node.props.onChange && Object.hasOwn(node.props, 'value') && node.props.value === null).props.onChange({ latitud: -1.249, longitud: -78.615 });
   app.fail(true);
   await find(app.checkoutTree(), node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(app.cleared(), false);
@@ -379,9 +387,9 @@ test('Cierre: error de dirección sin confirmación permite reintentar y conserv
   const registrar = app.crearRegistroPedido();
   await assert.rejects(registrar(datos, usuario, [item]), /no registrada/);
   fail = false;
-  const corregido = { ...datos, direccion: { ...datos.direccion, ciudad: 'Quito', referencia: 'Nueva referencia' } };
+  const corregido = { ...datos, direccion: { ...datos.direccion, direccion: 'Calle Flores 24', referencia: 'Nueva referencia' } };
   await registrar(corregido, usuario, [item]);
-  assert.equal(app.requests[1][2].ciudad, 'Quito');
+  assert.equal(app.requests[1][2].direccion, 'Calle Flores 24');
   assert.equal(app.requests[1][2].referencia, 'Nueva referencia');
   assert.equal(app.requests[2][2].direccion_id, 12);
 });

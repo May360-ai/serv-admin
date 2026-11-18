@@ -10,6 +10,11 @@ const zonasSchema = z.object({ success: z.literal(true), data: z.array(z.object(
 })) });
 
 export const zonasService = {
+  async coberturaEntrega() {
+    const { data } = await apiClient.get<unknown>('/api/zonas/cobertura');
+    return z.object({ centro: z.object({ latitud: z.number().min(-90).max(90), longitud: z.number().min(-180).max(180) }),
+      radio_km: z.number().positive().max(200), ciudad: z.literal('Ambato') }).parse(data);
+  },
   async listarZonas(): Promise<Zona[]> {
     const { data } = await apiClient.get<unknown>('/api/zonas');
     const resultado = zonasSchema.safeParse(data);

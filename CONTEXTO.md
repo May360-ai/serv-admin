@@ -31,6 +31,8 @@ Son repositorios Git independientes; no asumas un monorepo ni rutas absolutas de
 
 ## Seguimiento y recorridos: son funciones distintas
 
+- Al crear pedidos, el cliente confirma un punto manual o GPS en la web (checkout y Nuevo pedido). La API exige destino propio con coordenadas válidas, ciudad Ambato y zona activa, y copia el punto al pedido. Los históricos no se modifican automáticamente.
+- La cobertura inicial es un radio configurable de 15 km desde -1.249, -78.615 mediante SERV_DELIVERY_RADIUS_KM. GET /api/zonas/cobertura publica esa regla para la web. Las zonas no tienen polígonos: este radio no demuestra pertenencia a una zona concreta ni valida semánticamente la dirección. Aún no hay control de cercanía al completar entregas.
 - Seguimiento: Android comparte GPS mediante un servicio en primer plano con notificación y opción de detener. Despacho consulta la última señal de la ruta; la API oculta puntos con más de un minuto sin actualizar.
 - Recorrido: Android obtiene su ubicación y muestra el trazado por calles con Leaflet, teselas OpenStreetMap y OSRM. Las teselas dibujan el mapa; OSRM calcula tiempos y geometría. La API OSM v0.6 no es un motor de rutas.
 - Las coordenadas específicas del pedido prevalecen sobre las de su dirección. Editar un punto de entrega no modifica la dirección reutilizada por otros pedidos.

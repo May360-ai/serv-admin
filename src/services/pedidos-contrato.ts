@@ -19,12 +19,12 @@ export function programarEntrega(fecha: string, hora: string): string {
 const id = z.number().int().positive();
 const direccionSchema = z.object({
   nombre_ubicacion: z.string().trim().min(1, 'Indica un nombre para la dirección').max(50),
-  direccion: z.string().trim().min(1, 'Indica la dirección').max(255),
-  ciudad: z.string().trim().min(1, 'Indica la ciudad').max(100),
+  direccion: z.string().trim().min(5, 'Indica la calle y el número o referencia').max(255).regex(/\p{L}/u, 'Indica una calle válida'),
+  ciudad: z.string().trim().refine(value => value.toLocaleLowerCase() === 'ambato', 'La ciudad de entrega debe ser Ambato'),
   zona_id: id,
   referencia: z.string().max(255).optional(),
-  latitud: z.number().min(-90).max(90).optional(),
-  longitud: z.number().min(-180).max(180).optional(),
+  latitud: z.number({ error: 'Confirma el punto de entrega en el mapa' }).min(-90).max(90),
+  longitud: z.number({ error: 'Confirma el punto de entrega en el mapa' }).min(-180).max(180),
 });
 
 export const nuevoPedidoSchema = z.object({

@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatMoneda } from '@/lib/utils';
+import { PuntoEntrega, type PuntoEntrega as Punto } from '@/components/pedidos/punto-entrega';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -46,9 +47,11 @@ export default function CheckoutPage() {
   } = useCarritoStore();
 
   const [zona, setZona] = useState('');
-  const { data: zonas = [] } = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
+  const zonasConsulta = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
+  const zonas = zonasConsulta.data ?? [];
+  const [punto, setPunto] = useState<Punto | null>(null);
   const [calle, setCalle] = useState('');
-  const [ciudad, setCiudad] = useState('');
+  const ciudad = 'Ambato';
   const [referencia, setReferencia] = useState('');
   const [horaEntrega, setHoraEntrega] = useState('12:00');
   const [fechaEntrega, setFechaEntrega] = useState('');
@@ -71,6 +74,7 @@ export default function CheckoutPage() {
       toast.error('Por favor ingresá la dirección de entrega');
       return;
     }
+    if (!punto) { toast.error('Confirma el punto de entrega en el mapa.'); return; }
 
     setEnviando(true);
 
@@ -80,7 +84,7 @@ export default function CheckoutPage() {
       const pedido = await registrar({
         proveedor_id: proveedor,
         direccion: { nombre_ubicacion: 'Entrega Pedido', direccion: calle,
-          referencia: referencia.trim() || undefined, ciudad, zona_id: Number(zona) },
+          referencia: referencia.trim() || undefined, ciudad, zona_id: Number(zona), ...punto },
         fecha_entrega: fechaEntrega, hora_entrega: horaEntrega,
         instrucciones_especiales: instrucciones.trim() || undefined,
         items_comprados: items.map(i => ({ item_id: Number(i.item_id), cantidad: i.cantidad })),
@@ -226,25 +230,27 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <PuntoEntrega value={punto} onChange={setPunto} />
               <div className="space-y-1.5">
                 <Label htmlFor="calle">Dirección de Entrega (Calle y Número) *</Label>
                 <Input
                   id="calle"
                   value={calle}
                   onChange={(e) => setCalle(e.target.value)}
-                  placeholder="Av. Corrientes 1500"
+                  placeholder="Av. Cevallos y Mera, casa 42"
+                  minLength={5}
+                  maxLength={255}
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="ciudad">Ciudad *</Label>
                   <Input
                     id="ciudad"
                     value={ciudad}
-                    onChange={(e) => setCiudad(e.target.value)}
-                    placeholder="Buenos Aires"
+                    readOnly
                     required
                   />
                 </div>
@@ -262,6 +268,9 @@ export default function CheckoutPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="zona">Zona de reparto</Label>
+                {zonasConsulta.isPending && <p role="status">Cargando zonas…</p>}
+                {zonasConsulta.isError && <p role="alert">No se pudieron cargar las zonas. <Button type="button" variant="outline" onClick={() => void zonasConsulta.refetch()}>Reintentar zonas</Button></p>}
+                {zonasConsulta.isSuccess && !zonas.some(z => z.activa) && <p role="status">No hay zonas activas para recibir pedidos.</p>}
                 <select id="zona" required value={zona} onChange={e => setZona(e.target.value)} className="w-full border rounded-md p-2">
                   <option value="">Selecciona una zona</option>
                   {zonas.filter(z => z.activa).map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
@@ -331,6 +340,7 @@ export default function CheckoutPage() {
 
               <Button
                 type="submit"
+                disabled={enviando || !punto || !zona || !zonas.some(z => z.id === zona && z.activa)}
                 isLoading={enviando}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-6 text-base gap-2 shadow-sm"
               >

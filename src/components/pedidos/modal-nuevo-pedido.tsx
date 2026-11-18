@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback, useState } from 'react';
+import { PuntoEntrega, type PuntoEntrega as Punto } from './punto-entrega';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -27,17 +29,23 @@ export function ModalNuevoPedido({ open, onOpenChange }: ModalNuevoPedidoProps) 
   const zonas = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas, enabled: open && permitido });
   const catalogo = useQuery({ queryKey: ['catalogo-items', 'pedido-manual'], queryFn: () => itemsService.listarCatalogo(), enabled: open && permitido });
   const { mutate: crearPedido, isPending, error } = useCrearPedido(catalogo.data ?? []);
-  const { register, control, handleSubmit, reset, formState: { errors } } = useForm<CrearPedidoRequest>({
+  const [punto, setPunto] = useState<Punto | null>(null);
+  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<CrearPedidoRequest>({
     resolver: zodResolver(nuevoPedidoSchema),
     defaultValues: { items_comprados: [], fecha_entrega: '', hora_entrega: '',
-      direccion: { nombre_ubicacion: '', direccion: '', ciudad: '' } },
+      direccion: { nombre_ubicacion: '', direccion: '', ciudad: 'Ambato' } },
   });
+  const seleccionarPunto = useCallback((valor: Punto | null) => {
+    setPunto(valor);
+    setValue('direccion.latitud', valor?.latitud ?? NaN, { shouldValidate: true });
+    setValue('direccion.longitud', valor?.longitud ?? NaN, { shouldValidate: true });
+  }, [setValue]);
   const { fields, append, remove, replace } = useFieldArray({ control, name: 'items_comprados' });
   const proveedor = useWatch({ control, name: 'proveedor_id' });
   const productos = (catalogo.data ?? []).filter(item => item.proveedor_id === proveedor && item.activo);
   const tiendas = [...new Map((catalogo.data ?? []).map(item => [item.proveedor_id, item.proveedores?.nombre_comercial || `Tienda #${item.proveedor_id}`])).entries()];
   const onSubmit = (datos: CrearPedidoRequest) => {
-    crearPedido(datos, { onSuccess: () => { reset(); onOpenChange(false); } });
+    crearPedido(datos, { onSuccess: () => { reset(); setPunto(null); onOpenChange(false); } });
   };
   const errorValidacion = errors.proveedor_id?.message || errors.items_comprados?.root?.message || errors.items_comprados?.message ||
     errors.fecha_entrega?.message || errors.hora_entrega?.message;
@@ -82,10 +90,12 @@ export function ModalNuevoPedido({ open, onOpenChange }: ModalNuevoPedidoProps) 
               </div>
               <div><Label htmlFor="nombre-direccion">Nombre de ubicación *</Label><Input id="nombre-direccion" {...register('direccion.nombre_ubicacion')} />{errors.direccion?.nombre_ubicacion && <p role="alert">{errors.direccion.nombre_ubicacion.message}</p>}</div>
               <div><Label htmlFor="direccion-pedido">Dirección completa *</Label><Input id="direccion-pedido" {...register('direccion.direccion')} />{errors.direccion?.direccion && <p role="alert">{errors.direccion.direccion.message}</p>}</div>
-              <div><Label htmlFor="ciudad-pedido">Ciudad *</Label><Input id="ciudad-pedido" {...register('direccion.ciudad')} />{errors.direccion?.ciudad && <p role="alert">{errors.direccion.ciudad.message}</p>}</div>
+              <div><Label htmlFor="ciudad-pedido">Ciudad *</Label><Input id="ciudad-pedido" readOnly {...register('direccion.ciudad')} />{errors.direccion?.ciudad && <p role="alert">{errors.direccion.ciudad.message}</p>}</div>
+              <PuntoEntrega value={punto} onChange={seleccionarPunto} />
+              {(errors.direccion?.latitud || errors.direccion?.longitud) && <p role="alert">Confirma el punto de entrega en el mapa.</p>}
               <div><Label htmlFor="zona-pedido">Zona *</Label><Select id="zona-pedido" {...register('direccion.zona_id', { valueAsNumber: true })}>
                 <option value="">Selecciona una zona</option>
-                {zonas.data?.map(zona => <option key={zona.id} value={zona.id}>{zona.nombre}</option>)}
+                {zonas.data?.filter(zona => zona.activa).map(zona => <option key={zona.id} value={zona.id}>{zona.nombre}</option>)}
               </Select>{errors.direccion?.zona_id && <p role="alert">Selecciona una zona válida.</p>}</div>
               <div><Label htmlFor="referencia-pedido">Referencia</Label><Input id="referencia-pedido" {...register('direccion.referencia')} /></div>
               <div><Label htmlFor="notas-pedido">Instrucciones de entrega</Label><Textarea id="notas-pedido" {...register('instrucciones_especiales')} /></div>
@@ -93,7 +103,7 @@ export function ModalNuevoPedido({ open, onOpenChange }: ModalNuevoPedidoProps) 
               {error && <p role="alert" className="text-destructive">{error.message}</p>}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                <Button type="submit" isLoading={isPending} disabled={!tiendas.length || !zonas.data?.length || isPending} data-cy="btn-crear-pedido">Crear pedido</Button>
+                <Button type="submit" isLoading={isPending} disabled={!tiendas.length || !zonas.data?.some(zona => zona.activa) || !punto || isPending} data-cy="btn-crear-pedido">Crear pedido</Button>
               </DialogFooter>
             </fieldset>
           </form>

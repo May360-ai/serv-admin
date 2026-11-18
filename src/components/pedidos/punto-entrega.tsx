@@ -36,8 +36,8 @@ export function PuntoEntrega({ value, onChange }: { value: PuntoEntrega | null; 
       mapa = L.map(nodo).setView(centro, 14);
       mapaActual.current = mapa;
       L.circle(centro, { radius: area.radio_km * 1000, color: '#913813', weight: 1, fillOpacity: 0.03 }).addTo(mapa);
-      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO',
+      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).on('tileerror', () => { if (!desmontado) setErrorMapa(true); }).addTo(mapa);
       if (inicial.current) {
         const posicion = L.latLng(inicial.current.latitud, inicial.current.longitud);

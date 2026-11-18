@@ -46,10 +46,10 @@ function MapaEnVivo({
       if (desmontado) return;
       mapa = L.map(nodo, { scrollWheelZoom: false });
       L.tileLayer(
-        process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
         {
           maxZoom: 19,
-          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         },
       ).addTo(mapa);
       const marcadorDestino = L.circleMarker([0, 0], {

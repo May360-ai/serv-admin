@@ -29,9 +29,9 @@ function Mapa({ latitud, longitud }: { latitud: number; longitud: number }) {
     void import('leaflet').then(L => {
       if (desmontado) return;
       mapa = L.map(nodo, { scrollWheelZoom: false });
-      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(mapa);
       const marcador = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#0759b9', fillOpacity: 1 }).addTo(mapa);
       setCapas({ mapa, marcador });

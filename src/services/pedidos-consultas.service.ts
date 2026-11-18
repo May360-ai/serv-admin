@@ -43,6 +43,7 @@ export function idPedidoValido(value: string): boolean {
 }
 
 const detalleBase = z.object({
+  foto_entrega: z.object({ creada_en: fecha }).nullish(),
   id, codigo_seguimiento: z.string().nullable(), estados_pedido: z.object({ nombre: estadoConsulta }),
   fecha_creacion: fecha.nullable(), fecha_programada: fecha.nullable(), fecha_entrega_final: fecha.nullable(),
   instrucciones_especiales: z.string().nullable(), orden_en_ruta: z.number().int().positive().nullable(),

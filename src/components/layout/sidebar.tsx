@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { authService } from '@/services/auth.service';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/types/auth';
+import { FotoPerfil } from './foto-perfil';
 
 interface SidebarProps {
   open: boolean;
@@ -87,6 +88,7 @@ function SidebarContenido({ open, onClose }: SidebarProps) {
 
       {/* User Footer Profile */}
       <div className="border-t border-border p-4 bg-muted/10">
+        <div className="mb-3"><FotoPerfil /></div>
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold border border-primary/20">
             {usuario?.nombre ? usuario.nombre.charAt(0).toUpperCase() : 'U'}

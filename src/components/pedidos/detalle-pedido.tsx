@@ -7,6 +7,7 @@ import { ErrorHttp } from '@/lib/error-http';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoneda, getEstadoLabel } from '@/lib/utils';
+import { FotoPrivada } from './foto-privada';
 
 function fechaConfirmada(value: string | null) {
   return value ? new Intl.DateTimeFormat('es-EC', { timeZone: 'America/Guayaquil', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'No informada';
@@ -30,6 +31,7 @@ export function DetallePedido({ pedidoId }: { pedidoId: string }) {
   return <section className="max-w-4xl space-y-5">
     <h1 className="text-2xl font-bold">Pedido {pedido.codigo_seguimiento ?? `PED-${pedido.id}`}</h1>
     <p>{getEstadoLabel(pedido.estados_pedido.nombre)}</p>
+    {pedido.foto_entrega && <Card><CardHeader><CardTitle>Comprobante de entrega</CardTitle></CardHeader><CardContent><FotoPrivada key={`${pedido.id}:${pedido.foto_entrega.creada_en}`} path={`/api/pedidos/${pedido.id}/foto-entrega`} alt="Foto del pedido entregado" revision={pedido.foto_entrega.creada_en} /></CardContent></Card>}
     <Card><CardHeader><CardTitle>Entrega</CardTitle></CardHeader><CardContent className="space-y-2">
       <p>Tienda: {pedido.proveedores.nombre_comercial}</p>
       <p>Creación: {fechaConfirmada(pedido.fecha_creacion)}</p>

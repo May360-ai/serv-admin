@@ -47,7 +47,7 @@ function setup(responder) {
     consultarTiendas, RespuestaTiendasInvalida,
     refresh: () => observer.refetch(),
     render: () => renderToStaticMarkup(React.createElement(Page)),
-    tree: () => Page(),
+    tree: () => { let tree; function Inspector() { tree = Page(); return tree; } renderToStaticMarkup(React.createElement(Inspector)); return tree; },
     close: () => { unsubscribe(); observer.destroy(); client.clear(); },
   };
 }

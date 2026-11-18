@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatFecha, formatMoneda, getEstadoColor, getEstadoLabel } from '@/lib/utils';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 export default function MisPedidosPage() {
   const usuario = useAuthStore(s => s.usuario);
   const { data: pedidos = [], isLoading, isError, error, refetch, isFetching } = useMisPedidosCliente();
+  const paginado = usePaginacion(pedidos, String(usuario?.id));
   if (!usuario) return <p role="status">Cargando sesión…</p>;
   if (usuario.rol !== 'cliente') return <p role="alert">Esta vista requiere una sesión de cliente.</p>;
 
@@ -54,7 +56,7 @@ export default function MisPedidosPage() {
         />
       )) : (
         <div className="space-y-4">
-          {pedidos.map((p) => {
+          {paginado.datos.map((p) => {
             const estadoNombre = p.estados_pedido.nombre;
             const detalles = p.detalle_pedido ?? [];
 
@@ -145,6 +147,7 @@ export default function MisPedidosPage() {
           })}
         </div>
       )}
+      <Paginacion {...paginado} />
     </div>
   );
 }

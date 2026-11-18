@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 export default function CatalogoClientePage() {
   const [busqueda, setBusqueda] = useState('');
@@ -54,6 +55,7 @@ export default function CatalogoClientePage() {
     return texto.includes(busqueda.trim().toLowerCase());
   });
 
+  const paginado = usePaginacion(itemsFiltrados, `${busqueda}:${categoriaSeleccionada}`, 12);
   const handleAgregar = (item: ItemCatalogo) => {
     const precioNumerico = Number(item.precio);
     agregarItem(
@@ -160,7 +162,7 @@ export default function CatalogoClientePage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {itemsFiltrados.map((item) => {
+          {paginado.datos.map((item) => {
             const enCarrito = cartItems.find((c) => c.item_id === item.id);
             const stock = item.inventario_stock ?? 0;
             const sinStock = !item.es_servicio && stock <= 0;
@@ -275,6 +277,7 @@ export default function CatalogoClientePage() {
           </Link>
         </div>
       )}
+      <Paginacion {...paginado} />
     </div>
   );
 }

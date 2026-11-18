@@ -13,6 +13,7 @@ export class ErrorHttp extends Error {
       429: 'Hay demasiadas solicitudes. Espera un momento y vuelve a intentarlo.',
     };
     const confirmaciones: Record<string, string> = {
+      FOTO_ENTREGA_REQUERIDA: 'Adjunta la foto del pedido antes de confirmar la entrega.',
       UBICACION_INVALIDA: 'No se recibió una ubicación válida. Obtén tu ubicación actual y reintenta.',
       DESTINO_SIN_PUNTO: 'La entrega no tiene un punto válido. Pide a despacho que lo complete.',
       PRECISION_INSUFICIENTE: 'La precisión debe ser de 50 m o mejor. Activa la ubicación precisa y reintenta.',

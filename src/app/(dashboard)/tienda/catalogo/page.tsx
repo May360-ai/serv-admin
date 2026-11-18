@@ -33,6 +33,7 @@ import { itemsService, type ItemCatalogo } from '@/services/items.service';
 import { proveedoresService } from '@/services/proveedores.service';
 import { zonasService } from '@/services/zonas.service';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 const nuevoItemSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
@@ -77,6 +78,7 @@ export default function CatalogoPage() {
   });
   const { data: categorias = [] } = consultaCategorias;
   const { data: items = [], isLoading } = consultaItems;
+  const paginado = usePaginacion(items, String(usuario?.id), 12);
 
   const { mutate: crearItem, isPending } = useMutation({
     mutationFn: async (body: NuevoItemForm) => {
@@ -174,7 +176,7 @@ export default function CatalogoPage() {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((prod) => (
+          {paginado.datos.map((prod) => (
             <Card key={prod.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -301,6 +303,7 @@ export default function CatalogoPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <Paginacion {...paginado} />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { chatService, type ContactoChat, type PedidoChat } from '@/services/chat.service';
 import { useAuthStore } from '@/store/auth.store';
 import { useSocket } from '@/hooks/use-socket';
@@ -16,7 +17,11 @@ function Conversacion({ pedido, contacto }: { pedido: PedidoChat; contacto: Cont
   const [texto, setTexto] = useState('');
   const final = useRef<HTMLDivElement>(null);
   const key = ['chat-mensajes', pedido.id, contacto.id];
-  const consulta = useQuery({ queryKey: key, queryFn: () => chatService.obtenerMensajes(pedido.id, contacto.id), refetchInterval: 10000 });
+  const consulta = useInfiniteQuery({ queryKey: key, initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => chatService.obtenerMensajes(pedido.id, contacto.id, pageParam),
+    getNextPageParam: pagina => pagina.length === 50 ? pagina[0].id : undefined, refetchInterval: 10000 });
+  const mensajes = [...(consulta.data?.pages ?? [])].reverse().flat();
+  const ultimoId = mensajes.at(-1)?.id;
   useEffect(() => {
     const actualizar = (raw: unknown) => {
       const mensaje = raw as { pedido_id: number };
@@ -25,7 +30,7 @@ function Conversacion({ pedido, contacto }: { pedido: PedidoChat; contacto: Cont
     on('nuevo_mensaje', actualizar);
     return () => off('nuevo_mensaje', actualizar);
   }, [pedido.id, on, off, client]);
-  useEffect(() => { final.current?.scrollIntoView({ block: 'nearest' }); }, [consulta.data]);
+  useEffect(() => { final.current?.scrollIntoView({ block: 'nearest' }); }, [ultimoId]);
   const enviar = useMutation({
     mutationFn: () => chatService.enviarMensaje({ pedido_id: pedido.id, destinatario_id: contacto.id, contenido: texto.trim() }),
     onSuccess: () => { setTexto(''); void client.invalidateQueries({ queryKey: key }); },
@@ -39,8 +44,9 @@ function Conversacion({ pedido, contacto }: { pedido: PedidoChat; contacto: Cont
     <div className="max-h-[55vh] flex-1 space-y-3 overflow-y-auto p-4" role="log" aria-label="Mensajes">
       {consulta.isLoading && <p role="status">Cargando mensajes…</p>}
       {consulta.isError && <p role="alert">{consulta.error.message} <Button variant="outline" onClick={() => consulta.refetch()}>Reintentar</Button></p>}
-      {consulta.isSuccess && consulta.data.length === 0 && <p>No hay mensajes con este contacto. Escribe para coordinar la entrega.</p>}
-      {consulta.data?.map(msg => <article key={msg.id} className={`w-fit max-w-[90%] rounded-lg border p-3 ${String(msg.autor_id) === String(usuario?.id) ? 'ml-auto bg-muted' : 'bg-background'}`}>
+      {consulta.isSuccess && mensajes.length === 0 && <p>No hay mensajes con este contacto. Escribe para coordinar la entrega.</p>}
+      {consulta.hasNextPage && <Button variant="outline" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>Cargar mensajes anteriores</Button>}
+      {mensajes.map(msg => <article key={msg.id} className={`w-fit max-w-[90%] rounded-lg border p-3 ${String(msg.autor_id) === String(usuario?.id) ? 'ml-auto bg-muted' : 'bg-background'}`}>
         <p className="text-sm font-medium">{String(msg.autor_id) === String(usuario?.id) ? 'Tú' : contacto.nombre}</p>
         <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.contenido}</p>
         <time className="text-xs text-muted-foreground" dateTime={msg.created_at}>{new Date(msg.created_at).toLocaleString('es-EC', { timeZone: 'America/Guayaquil', dateStyle: 'short', timeStyle: 'short' })}</time>
@@ -58,14 +64,16 @@ function Conversacion({ pedido, contacto }: { pedido: PedidoChat; contacto: Cont
 }
 
 export default function ChatPage() {
+  return <Suspense fallback={<p>Cargando conversación…</p>}><ChatContenido /></Suspense>;
+}
+
+function ChatContenido() {
   const usuario = useAuthStore(s => s.usuario);
-  const [pedidoId, setPedidoId] = useState('');
-  const [contactoId, setContactoId] = useState('');
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setPedidoId(params.get('pedido') || '');
-    setContactoId(params.get('contacto') || '');
-  }, []);
+  const params = useSearchParams();
+  const [pedidoElegido, setPedidoId] = useState<string | null>(null);
+  const [contactoElegido, setContactoId] = useState<string | null>(null);
+  const pedidoId = pedidoElegido ?? params.get('pedido') ?? '';
+  const contactoId = contactoElegido ?? params.get('contacto') ?? '';
   const consulta = useQuery({ queryKey: ['pedidos-chat', usuario?.id], queryFn: chatService.listarPedidos, enabled: Boolean(usuario), refetchInterval: 15000 });
   const pedidos = consulta.data ?? [];
   const pedido = pedidos.find(p => p.id === pedidoId) ?? (!pedidoId ? pedidos[0] : undefined);

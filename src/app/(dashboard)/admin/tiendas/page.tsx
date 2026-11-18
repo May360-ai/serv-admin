@@ -9,12 +9,14 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { consultarTiendas, RespuestaTiendasInvalida } from './consulta-tiendas';
 import { ErrorHttp } from '@/lib/error-http';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 export default function AdminTiendasPage() {
   const { data: tiendas = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['admin-tiendas'],
     queryFn: consultarTiendas,
   });
+  const paginado = usePaginacion(tiendas, '', 12);
 
   return (
     <div className="space-y-6">
@@ -51,7 +53,7 @@ export default function AdminTiendasPage() {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tiendas.map((t) => (
+          {paginado.datos.map((t) => (
             <Card key={t.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
@@ -85,6 +87,7 @@ export default function AdminTiendasPage() {
           ))}
         </div>
       )}
+      <Paginacion {...paginado} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { getFechaHoy } from '@/features/despacho/despacho.store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ErrorHttp } from '@/lib/error-http';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 const repartidoresSchema = z.object({ data: z.array(z.object({
   id: z.number().int(), nombre: z.string(), apellido: z.string().nullable(),
@@ -35,6 +36,7 @@ function GestionRepartidores() {
       return repartidoresSchema.parse(data).data;
     },
   });
+  const paginado = usePaginacion(consulta.data ?? [], `${usuario?.id}:${fecha}`, 12);
   const actualizar = () => {
     for (const key of ['flota', 'repartidores-despacho', 'repartidores-reprogramacion']) {
       void client.invalidateQueries({ queryKey: [key] });
@@ -87,7 +89,7 @@ function GestionRepartidores() {
     {cambiarEstado.isError && <p role="alert">{cambiarEstado.error.message}. Si tiene rutas pendientes, reasígnalas desde Despacho.</p>}
     {consulta.isSuccess && consulta.data.length === 0 && <p>No hay repartidores registrados.</p>}
     <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {consulta.data?.map(rep => <li key={rep.id} className="space-y-2 rounded-lg border bg-card p-4">
+      {paginado.datos.map(rep => <li key={rep.id} className="space-y-2 rounded-lg border bg-card p-4">
         <h2 className="break-words font-semibold">{rep.nombre} {rep.apellido}</h2>
         <p className="break-all text-sm">{rep.email}</p>
         {rep.telefono && <p className="text-sm">{rep.telefono}</p>}
@@ -99,5 +101,6 @@ function GestionRepartidores() {
         })}>{rep.estado === 'activo' ? 'Desactivar cuenta' : 'Activar cuenta'}</Button>
       </li>)}
     </ul>
+    <Paginacion {...paginado} />
   </div>;
 }

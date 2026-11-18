@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ export function ConfirmacionExcepcional({ rutas }: { rutas: Ruta[] }) {
   const registros = rutas.flatMap(ruta => ruta.pedidos.filter(p => p.confirmacion_entrega).map(pedido => ({ ruta, pedido })));
   const guardar = useMutation({
     mutationFn: async () => {
-      if (!seleccion || !confirmado || motivo.trim().length < 10) throw new Error('Selecciona la entrega, explica el motivo y confirma la verificación.');
+      if (!seleccion?.pedido.foto_entrega || !confirmado || motivo.trim().length < 10) throw new Error('La entrega necesita foto, motivo y verificación de recepción.');
       await apiClient.post(`/api/rutas/${seleccion.ruta.id}/entregas/${seleccion.pedido.id}/excepcion`, { motivo: motivo.trim() });
     },
     onSuccess: async () => {
@@ -36,7 +37,7 @@ export function ConfirmacionExcepcional({ rutas }: { rutas: Ruta[] }) {
     <Dialog open={abierto} onOpenChange={valor => { if (!guardar.isPending) setAbierto(valor); }}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-[36rem] sm:max-w-[36rem]" onClose={() => { if (!guardar.isPending) setAbierto(false); }} aria-labelledby="titulo-confirmaciones">
         <DialogHeader><DialogTitle id="titulo-confirmaciones">Confirmaciones de entrega</DialogTitle></DialogHeader>
-        <p className="mb-4 text-sm">Si el repartidor no puede validar el GPS, verifica la entrega con él o con el cliente. La excepción completa el pedido y registra tu identidad, la fecha y el motivo.</p>
+        <p className="mb-4 text-sm">Si el repartidor no puede validar el GPS, verifica la recepción con él o con el cliente. La foto del pedido sigue siendo obligatoria. La excepción completa la entrega y registra tu identidad, la fecha y el motivo.</p>
         {!opciones.length ? <p role="status">No hay próximas paradas en camino que requieran confirmación.</p> : <form className="space-y-3" onSubmit={event => { event.preventDefault(); guardar.mutate(); }}>
           <label className="block space-y-1">Entrega
             <Select value={id} required disabled={guardar.isPending} onChange={event => { setId(event.target.value); setMotivo(''); setConfirmado(false); guardar.reset(); }}>
@@ -45,17 +46,19 @@ export function ConfirmacionExcepcional({ rutas }: { rutas: Ruta[] }) {
             </Select>
           </label>
           {seleccion && <p className="text-sm">{seleccion.pedido.direccion.calle}, {seleccion.pedido.direccion.ciudad}</p>}
+          {seleccion && !seleccion.pedido.foto_entrega && <p role="status">Pide al repartidor que envíe la foto antes de autorizar la excepción.</p>}
           <label className="block space-y-1">Motivo de la excepción
             <Textarea value={motivo} minLength={10} maxLength={500} required disabled={guardar.isPending} onChange={event => setMotivo(event.target.value)} />
           </label>
           <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={confirmado} disabled={guardar.isPending} onChange={event => setConfirmado(event.target.checked)} /> Verifiqué que el cliente recibió el pedido.</label>
           {guardar.isError && <p role="alert">{guardar.error.message}</p>}
-          <Button type="submit" disabled={!seleccion || !confirmado || motivo.trim().length < 10 || guardar.isPending} isLoading={guardar.isPending}>Confirmar entrega excepcional</Button>
+          <Button type="submit" disabled={!seleccion?.pedido.foto_entrega || !confirmado || motivo.trim().length < 10 || guardar.isPending} isLoading={guardar.isPending}>Confirmar entrega excepcional</Button>
         </form>}
         <h3 className="mt-6 mb-2 font-medium">Confirmaciones de las rutas seleccionadas</h3>
         {!registros.length && <p className="text-sm">Todavía no hay confirmaciones.</p>}
         <ul className="space-y-3 text-sm">{registros.map(({ pedido }) => <li key={pedido.id} className="border-t pt-2">
           <p>{pedido.numero_pedido} · {pedido.confirmacion_entrega?.metodo === 'gps' ? 'Cercanía GPS verificada' : 'Excepción autorizada'}</p>
+          <Link href={`/pedidos/${pedido.id}`} className="underline underline-offset-4">Ver detalle y comprobante</Link>
           <p>Usuario #{pedido.confirmacion_entrega?.actor_id} · {new Date(pedido.confirmacion_entrega!.registrada_en).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}</p>
           {pedido.confirmacion_entrega?.motivo && <p>Motivo: {pedido.confirmacion_entrega.motivo}</p>}
         </li>)}</ul>

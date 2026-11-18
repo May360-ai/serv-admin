@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Truck,
   MapPin,
@@ -82,6 +83,7 @@ function PedidoItemRuta({
           <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs mt-1.5 border', getEstadoColor(pedido.estado))}>
             {getEstadoLabel(pedido.estado)}
           </span>
+          <Link href={`/pedidos/${pedido.id}`} className="mt-2 block text-sm underline underline-offset-4">Ver detalle y comprobante</Link>
         </div>
 
         {/* Controles */}

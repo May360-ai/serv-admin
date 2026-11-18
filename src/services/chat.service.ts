@@ -19,9 +19,9 @@ export const chatService = {
   async listarPedidos(): Promise<PedidoChat[]> {
     return (await apiClient.get<PedidoChat[]>('/api/chat/pedidos')).data;
   },
-  async obtenerMensajes(pedido_id: string, contacto_id?: number): Promise<MensajeChat[]> {
+  async obtenerMensajes(pedido_id: string, contacto_id?: number, antes_de?: string): Promise<MensajeChat[]> {
     const { data } = await apiClient.get<unknown>(
-      `/api/chat/pedido/${pedido_id}`, { params: { contacto_id } }
+      `/api/chat/pedido/${pedido_id}`, { params: { contacto_id, ...(antes_de ? { antes_de } : {}) } }
     );
     const lista = Array.isArray(data)
       ? data

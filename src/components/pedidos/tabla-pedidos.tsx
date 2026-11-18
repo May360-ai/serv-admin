@@ -25,6 +25,7 @@ import {
 } from '@/lib/utils';
 import { useCambiarEstado } from '@/hooks/use-pedidos';
 import { useAuthStore } from '@/store/auth.store';
+import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 const ACCIONES_POR_ESTADO: Record<EstadoPedido, EstadoPedido[]> = {
   pendiente: ['aceptado', 'cancelado'],
@@ -111,6 +112,7 @@ interface TablaPedidosProps {
 }
 
 export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
+  const paginado = usePaginacion(pedidos, pedidos.map(p => p.id).join(','));
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -148,7 +150,7 @@ export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
             </tr>
           </thead>
           <tbody>
-            {pedidos.map((pedido, index) => (
+            {paginado.datos.map((pedido, index) => (
               <tr
                 key={pedido.id}
                 className={cn(
@@ -222,6 +224,7 @@ export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
           </tbody>
         </table>
       </div>
+      <Paginacion {...paginado} />
     </div>
   );
 }

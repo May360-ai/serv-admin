@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { getFechaHoy } from '@/features/despacho/despacho.store';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -8,10 +8,13 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
 import type { Ruta } from '@/types';
+import { ubicacionParaConfirmar } from '@/lib/ubicacion-confirmacion';
+
+const suscribirFecha = () => () => {};
+const fechaServidor = () => '';
 
 export default function EntregasPage() {
-  const [fecha, setFecha] = useState('');
-  useEffect(() => setFecha(getFechaHoy()), []);
+  const fecha = useSyncExternalStore(suscribirFecha, getFechaHoy, fechaServidor);
   const queryClient = useQueryClient();
   const key = ['mis-entregas', fecha];
   const consulta = useQuery({
@@ -19,8 +22,10 @@ export default function EntregasPage() {
     queryFn: async () => (await apiClient.get<{ data: Ruta[] }>('/api/rutas/mis-entregas', { params: { fecha_entrega: fecha, incluir_atrasadas: true } })).data.data,
   });
   const avanzar = useMutation({
-    mutationFn: ({ ruta, pedido, estado }: { ruta: string; pedido: string; estado: string }) =>
-      apiClient.patch('/api/rutas/' + ruta + '/entregas/' + pedido, { estado }),
+    mutationFn: async ({ ruta, pedido, estado }: { ruta: string; pedido: string; estado: string }) => {
+      const ubicacion = estado === 'completado' ? await ubicacionParaConfirmar() : undefined;
+      return apiClient.patch('/api/rutas/' + ruta + '/entregas/' + pedido, { estado, ...(ubicacion ? { ubicacion } : {}) });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
     onError: (error: Error) => toast.error(error.message),
   });
@@ -28,6 +33,7 @@ export default function EntregasPage() {
     <h1 className="text-4xl font-semibold tracking-tight">Mis entregas</h1>
     {(!fecha || consulta.isLoading) && <p>Consultando tus paradas…</p>}
     {consulta.isError && <p role="alert">No se pudieron cargar tus entregas. <button onClick={() => consulta.refetch()}>Reintentar</button></p>}
+    {avanzar.isError && <p role="alert">{avanzar.error.message}</p>}
     {consulta.data?.length === 0 && <p>No tienes salidas asignadas para hoy.</p>}
     {consulta.data?.map(ruta => {
       const siguiente = ruta.pedidos.find(p => !['completado', 'cancelado', 'fallido'].includes(p.estado));
@@ -45,7 +51,8 @@ export default function EntregasPage() {
           </div>
           {siguiente?.id === p.id && <Button className="mt-3" disabled={avanzar.isPending} onClick={() => avanzar.mutate({
             ruta: ruta.id, pedido: p.id, estado: p.estado === 'en_camino' ? 'completado' : 'en_camino'
-          })}>{p.estado === 'en_camino' ? 'Confirmar entrega' : 'Marcar en camino'}</Button>}
+          })}>{avanzar.isPending ? 'Procesando…' : p.estado === 'en_camino' ? 'Confirmar entrega' : 'Marcar en camino'}</Button>}
+          {siguiente?.id === p.id && p.estado === 'en_camino' && <p className="mt-2 text-sm">Al confirmar se comprueba tu cercanía al destino con una ubicación reciente. Si el GPS falla, contacta a despacho.</p>}
         </li>)}</ol>
       </article>;
     })}

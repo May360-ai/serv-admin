@@ -53,6 +53,7 @@ export interface VentanaHoraria {
 }
 
 export interface Pedido {
+  confirmacion_entrega?: { metodo: 'gps' | 'excepcion'; actor_id: number; registrada_en: string; motivo: string | null } | null;
   motivo_fallo?: string | null;
   id: string;
   numero_pedido: string;

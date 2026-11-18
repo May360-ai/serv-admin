@@ -36,6 +36,10 @@ Antes de actualizar el panel, actualiza la API: necesita `/api/auth/sesion`, `/a
 
 Verificación: `npm test`, `npx tsc --noEmit` y `npm run build`.
 
+## Confirmación de entregas
+
+El repartidor web obtiene una ubicación nueva al confirmar entregas; la API comprueba cercanía, antigüedad y precisión. Si el navegador no tiene permiso, la señal es imprecisa o el destino no tiene punto, conserva el estado y muestra cómo continuar. Despacho ofrece **Confirmaciones de entrega** para autorizar una excepción con motivo y confirmación explícita de recepción, y consultar actor/fecha/motivo de las confirmaciones de las rutas seleccionadas. Completar desde el cambio genérico de estado se retiró para evitar omitir el control. Consulta el README de la API para la migración y los límites configurables.
+
 ## Acceso demo en desarrollo
 
 El backend carga los datos base con `npm run seed`. Para crear las cuatro cuentas demo, configura `SERV_DEMO_PASSWORD` en su archivo privado de entorno y ejecuta `npm run seed:demo`. En el frontend, los botones del login aparecen en desarrollo cuando `NEXT_PUBLIC_SERV_DEMO_PASSWORD` en `.env.local` coincide con esa clave. Cualquier persona con acceso a esta web de desarrollo puede usar los cuatro roles, incluido administración. Usa este flujo únicamente en un entorno de demostración.

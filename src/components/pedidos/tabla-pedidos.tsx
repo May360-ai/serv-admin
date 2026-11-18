@@ -31,7 +31,7 @@ const ACCIONES_POR_ESTADO: Record<EstadoPedido, EstadoPedido[]> = {
   aceptado: ['agendado', 'cancelado'],
   agendado: ['en_camino', 'cancelado'],
   en_progreso: [],
-  en_camino: ['completado', 'cancelado'],
+  en_camino: ['cancelado'],
   completado: [],
   cancelado: [],
   fallido: [],

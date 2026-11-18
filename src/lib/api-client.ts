@@ -59,7 +59,9 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    return Promise.reject(new ErrorHttp(error.response?.status));
+    const codigo = (error.response?.data as { codigo?: unknown } | undefined)?.codigo;
+    return Promise.reject(new ErrorHttp(error.response?.status,
+      typeof codigo === 'string' && /\/api\/rutas\/[^/]+\/entregas\/[^/]+$/.test(error.config?.url ?? '') ? codigo : undefined));
   }
 );
 

@@ -64,6 +64,22 @@ function httpSetup(t) {
     network: () => { network = true; }, cancel: () => { cancelled = true; } };
 }
 
+test('Confirmación GPS: códigos permitidos muestran orientación sin exponer el cuerpo HTTP', async t => {
+  const app = httpSetup(t);
+  app.set(422, { codigo: 'FUERA_RADIO_ENTREGA', error: 'SELECT /private token=ficticio' });
+  await assert.rejects(app.apiClient.patch('/api/rutas/r1/entregas/1'), error => {
+    assert.match(error.message, /fuera del radio/); assert.doesNotMatch(error.message, /SELECT|private|token/); return true;
+  });
+  app.set(422, { codigo: 'SELECT /private', error: 'traza SQL' });
+  await assert.rejects(app.apiClient.patch('/api/rutas/r1/entregas/1'), error => {
+    assert.doesNotMatch(error.message, /SELECT|private|SQL/); return true;
+  });
+  app.set(500, { codigo: 'FUERA_RADIO_ENTREGA' });
+  await assert.rejects(app.apiClient.patch('/api/rutas/r1/entregas/1'), error => {
+    assert.doesNotMatch(error.message, /fuera del radio/); return true;
+  });
+});
+
 for (const status of [401, 403, 404, 500]) {
   test(`D10: HTTP ${status} conserva clasificación y no expone cuerpo ni trazas`, async t => {
     const app = httpSetup(t); app.set(status);

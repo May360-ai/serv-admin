@@ -179,7 +179,7 @@ export interface CrearPedidoRequest {
     nombre_ubicacion: string;
     direccion: string;
     ciudad: string;
-    zona_id: number;
+    zona_id?: number;
     referencia?: string;
     latitud: number;
     longitud: number;

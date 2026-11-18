@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { zonasService } from '@/services/zonas.service';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -46,9 +45,6 @@ export default function CheckoutPage() {
     obtenerTotal,
   } = useCarritoStore();
 
-  const [zona, setZona] = useState('');
-  const zonasConsulta = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
-  const zonas = zonasConsulta.data ?? [];
   const [punto, setPunto] = useState<Punto | null>(null);
   const [calle, setCalle] = useState('');
   const ciudad = 'Ambato';
@@ -84,7 +80,7 @@ export default function CheckoutPage() {
       const pedido = await registrar({
         proveedor_id: proveedor,
         direccion: { nombre_ubicacion: 'Entrega Pedido', direccion: calle,
-          referencia: referencia.trim() || undefined, ciudad, zona_id: Number(zona), ...punto },
+          referencia: referencia.trim() || undefined, ciudad, ...punto },
         fecha_entrega: fechaEntrega, hora_entrega: horaEntrega,
         instrucciones_especiales: instrucciones.trim() || undefined,
         items_comprados: items.map(i => ({ item_id: Number(i.item_id), cantidad: i.cantidad })),
@@ -267,14 +263,9 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="zona">Zona de reparto</Label>
-                {zonasConsulta.isPending && <p role="status">Cargando zonas…</p>}
-                {zonasConsulta.isError && <p role="alert">No se pudieron cargar las zonas. <Button type="button" variant="outline" onClick={() => void zonasConsulta.refetch()}>Reintentar zonas</Button></p>}
-                {zonasConsulta.isSuccess && !zonas.some(z => z.activa) && <p role="status">No hay zonas activas para recibir pedidos.</p>}
-                <select id="zona" required value={zona} onChange={e => setZona(e.target.value)} className="w-full border rounded-md p-2">
-                  <option value="">Selecciona una zona</option>
-                  {zonas.filter(z => z.activa).map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
-                </select>
+                <p className="text-xs text-muted-foreground">
+                  El sector de reparto se asignará automáticamente según tu ubicación en el mapa.
+                </p>
                 <Label htmlFor="hora_entrega">Hora de entrega en Ambato</Label>
                 <Input id="hora_entrega" type="time" value={horaEntrega} onChange={e => setHoraEntrega(e.target.value)} required />
                 <Label htmlFor="fecha_entrega">Fecha Programada de Entrega *</Label>
@@ -340,7 +331,7 @@ export default function CheckoutPage() {
 
               <Button
                 type="submit"
-                disabled={enviando || !punto || !zona || !zonas.some(z => z.id === zona && z.activa)}
+                disabled={enviando || !punto}
                 isLoading={enviando}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-6 text-base gap-2 shadow-sm"
               >

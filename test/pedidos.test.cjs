@@ -318,7 +318,7 @@ test('D04/5.1 hook: administración consume contrato global real sin fallback de
 });
 test('Regresión checkout: conserva UI y carrito al fallar; comparte dirección confirmada y payload correcto al reintentar', async t => {
   const app = uiSetup(t);
-  for (const [id, value] of [['calle', 'Calle Prueba 42'], ['zona', '2'], ['fecha_entrega', '2026-11-12'], ['hora_entrega', '23:59']]) {
+  for (const [id, value] of [['calle', 'Calle Prueba 42'], ['fecha_entrega', '2026-11-12'], ['hora_entrega', '23:59']]) {
     find(app.checkoutTree(), node => node.props.id === id).props.onChange({ target: { value } });
   }
   find(app.checkoutTree(), node => node.props.onChange && Object.hasOwn(node.props, 'value') && node.props.value === null).props.onChange({ latitud: -1.249, longitud: -78.615 });

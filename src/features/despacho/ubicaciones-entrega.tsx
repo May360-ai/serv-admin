@@ -47,8 +47,8 @@ function EditorPunto({ ruta, pedido, centro, cerrar }: { ruta: Ruta; pedido: Ped
       const datos = inicio.current;
       mapa = L.map(nodo).setView([datos.centro.latitud, datos.centro.longitud], 15);
       mapaActual.current = mapa;
-      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO',
       }).addTo(mapa);
       const colocar = (latitud: number, longitud: number) => {
         if (!mapa) return;

@@ -21,7 +21,7 @@ const direccionSchema = z.object({
   nombre_ubicacion: z.string().trim().min(1, 'Indica un nombre para la dirección').max(50),
   direccion: z.string().trim().min(5, 'Indica la calle y el número o referencia').max(255).regex(/\p{L}/u, 'Indica una calle válida'),
   ciudad: z.string().trim().refine(value => value.toLocaleLowerCase() === 'ambato', 'La ciudad de entrega debe ser Ambato'),
-  zona_id: id,
+  zona_id: id.optional(),
   referencia: z.string().max(255).optional(),
   latitud: z.number({ error: 'Confirma el punto de entrega en el mapa' }).min(-90).max(90),
   longitud: z.number({ error: 'Confirma el punto de entrega en el mapa' }).min(-180).max(180),

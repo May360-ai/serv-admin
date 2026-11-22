@@ -33,10 +33,10 @@ const RUTAS_ADMIN = [
   '/admin/repartidores',
   '/admin/tiendas',
   '/admin/metricas',
+  '/admin/clientes',
   '/dashboard',
   '/pedidos',
   '/rutas',
-  '/zonas',
   '/chat',
 ] as const;
 
@@ -58,15 +58,12 @@ export const ROLE_ROUTES: Record<Role, readonly string[]> = {
   cliente: [
     '/catalogo',
     '/mis-pedidos',
-    '/seguimiento',
+    '/pedidos',
     '/checkout',
     '/chat',
   ],
-  repartidor: [
-    '/entregas',
-    '/pedidos',
-    '/chat',
-  ],
+  // El repartidor trabaja desde la app Android; la web no tiene vistas para este rol.
+  repartidor: [],
 } as const;
 
 // Ruta de aterrizaje predeterminada según rol
@@ -75,7 +72,7 @@ export const DEFAULT_ROLE_REDIRECT: Record<Role, string> = {
   administrador: '/admin/metricas',
   proveedor: '/tienda/rutas',
   cliente: '/catalogo',
-  repartidor: '/entregas',
+  repartidor: '/login',
 };
 
 // Rutas públicas que no requieren autenticación

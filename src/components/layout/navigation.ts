@@ -10,6 +10,7 @@ import {
   MessageSquare,
   PackageCheck,
   ShoppingCart,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import type { Role } from '@/types/auth';
@@ -26,7 +27,8 @@ const ADMIN_MENU: NavItem[] = [
   { href: '/rutas', label: 'Despacho Global', icon: Route },
   { href: '/admin/zonas', label: 'Zonas de Reparto', icon: MapPin },
   { href: '/admin/repartidores', label: 'Gestión Repartidores', icon: Users },
-  { href: '/admin/tiendas', label: 'Tiendas Registradas', icon: Store },
+  { href: '/admin/tiendas', label: 'Tiendas', icon: Store },
+  { href: '/admin/clientes', label: 'Clientes', icon: UserRound },
 ];
 
 export const MENU_BY_ROLE: Record<Role, NavItem[]> = {
@@ -45,8 +47,6 @@ export const MENU_BY_ROLE: Record<Role, NavItem[]> = {
     { href: '/checkout', label: 'Mi Carrito', icon: ShoppingCart },
     { href: '/chat', label: 'Soporte y Chat', icon: MessageSquare },
   ],
-  repartidor: [
-    { href: '/entregas', label: 'Mis entregas', icon: Route },
-    { href: '/chat', label: 'Chat de Pedido', icon: MessageSquare },
-  ],
+  // El repartidor usa exclusivamente la app Android.
+  repartidor: [],
 };

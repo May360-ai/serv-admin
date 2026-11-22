@@ -155,20 +155,16 @@ export default function LoginPage() {
                 >
                   Cliente · Lucía
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setDemoCredentials('repartidor@serv.com')}
-                  className="px-3 py-2 text-sm rounded-md border border-border text-left hover:bg-accent"
-                >
-                  Repartidor · Martín
-                </button>
               </div>
             </div>
             )}
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          ¿Eres repartidor? Tus rutas y entregas están en la app Android de SERV.
+        </p>
+        <p className="text-center text-xs text-muted-foreground mt-2">
           © 2026 SERV — Logística de Última Milla
         </p>
       </div>

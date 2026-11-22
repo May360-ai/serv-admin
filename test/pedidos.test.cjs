@@ -413,6 +413,7 @@ test('Cierre permisos: el middleware permite checkout únicamente al cliente', a
       const req = new NextRequest('http://localhost/checkout', { headers: { cookie: 'serv_token=jwt-simulado' } });
       const res = await middleware(req);
       if (rol_nombre === 'cliente') assert.equal(res.headers.get('x-middleware-next'), '1');
+      else if (rol_nombre === 'repartidor') assert.match(res.headers.get('location'), /login\?error=repartidor_app/);
       else assert.match(res.headers.get('location'), /unauthorized/);
     }
   } finally { global.fetch = original; }

@@ -12,10 +12,15 @@ function parseJwtPayload(token: string): { id?: number; rol_nombre?: string; pro
   }
 }
 
+export const MENSAJE_REPARTIDOR_APP = 'Los repartidores trabajan desde la app Android de SERV. Inicia sesión allí.';
+
 export const authService = {
   async login(body: LoginRequest): Promise<LoginResponse> {
     const { data } = await apiClient.post<LoginResponse>('/api/auth/login', body);
-    
+    if (data.usuario?.rol === 'repartidor') {
+      throw new Error(MENSAJE_REPARTIDOR_APP);
+    }
+
     // Extraer proveedor_id directamente del token JWT firmado por el backend
     const payload = parseJwtPayload(data.token);
     const usuarioCompleto: Usuario = {

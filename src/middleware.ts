@@ -7,16 +7,14 @@ const PUBLIC_PREFIXES = ['/login', '/registro', '/unauthorized'];
 
 // Rutas con acceso restringido estricto por rol
 const ROLE_REQUIRED_ROUTES: { prefix: string; roles: Role[] }[] = [
-  { prefix: '/pedidos', roles: ['admin', 'administrador', 'cliente', 'proveedor', 'repartidor'] },
-  { prefix: '/entregas', roles: ['repartidor'] },
+  { prefix: '/pedidos', roles: ['admin', 'administrador', 'cliente', 'proveedor'] },
   { prefix: '/admin', roles: ['admin', 'administrador'] },
   { prefix: '/tienda', roles: ['proveedor'] },
   { prefix: '/rutas', roles: ['admin', 'administrador', 'proveedor'] },
-  { prefix: '/zonas', roles: ['admin', 'administrador'] },
-  { prefix: '/catalogo', roles: ['cliente', 'admin', 'administrador'] },
-  { prefix: '/mis-pedidos', roles: ['cliente', 'admin', 'administrador'] },
-  { prefix: '/seguimiento', roles: ['cliente', 'admin', 'administrador'] },
+  { prefix: '/catalogo', roles: ['cliente'] },
+  { prefix: '/mis-pedidos', roles: ['cliente'] },
   { prefix: '/checkout', roles: ['cliente'] },
+  { prefix: '/chat', roles: ['cliente', 'proveedor', 'admin', 'administrador'] },
 ];
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
@@ -71,6 +69,24 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response;
   }
 
+  // El repartidor trabaja solo desde la app Android: la web cierra su sesión.
+  if (userRole === 'repartidor') {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'repartidor_app');
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete('serv_token');
+    response.cookies.delete('serv_role');
+    return response;
+  }
+
+  // Rutas antiguas con una única vista vigente.
+  if (pathname === '/zonas' || pathname.startsWith('/zonas/')) {
+    return NextResponse.redirect(new URL('/admin/zonas', request.url));
+  }
+  if (userRole === 'cliente' && pathname === '/pedidos') {
+    return NextResponse.redirect(new URL('/mis-pedidos', request.url));
+  }
+
   // 5. Redirección inteligente de raíz o dashboard según rol
   if (pathname === '/' || pathname === '/dashboard') {
     if (userRole === 'admin' || userRole === 'administrador') {
@@ -79,14 +95,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (userRole === 'proveedor') {
       return NextResponse.redirect(new URL('/tienda/rutas', request.url));
     }
-    if (userRole === 'repartidor') return NextResponse.redirect(new URL('/entregas', request.url));
     if (userRole === 'cliente') {
       return NextResponse.redirect(new URL('/catalogo', request.url));
     }
-  }
-
-  if (userRole === 'repartidor' && (pathname === '/rutas' || pathname.startsWith('/rutas/'))) {
-    return NextResponse.redirect(new URL('/entregas', request.url));
   }
 
   // 6. Validar permisos de acceso según matriz RBAC

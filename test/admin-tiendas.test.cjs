@@ -14,10 +14,14 @@ function setup(responder) {
   let observer;
   const mocks = {
     '@/lib/api-client': { apiClient: { get: async (url) => {
-      assert.equal(url, '/api/proveedores');
+      assert.equal(url, '/api/proveedores/admin/todas');
       return { data: await responder() };
-    } } },
-    '@tanstack/react-query': { useQuery: () => observer.getCurrentResult() },
+    }, patch: async () => ({ data: {} }) } },
+    '@tanstack/react-query': {
+      useQuery: () => observer.getCurrentResult(),
+      useQueryClient: () => ({ invalidateQueries: async () => {} }),
+      useMutation: () => ({ mutate: () => {}, isPending: false, isError: false, error: null }),
+    },
   };
   function load(file) {
     if (cache.has(file)) return cache.get(file).exports;
@@ -52,7 +56,10 @@ function setup(responder) {
   };
 }
 
-const tienda = { id: 7, nombre_comercial: 'Tienda de prueba', direcciones: null, es_verificado: false };
+const tienda = { id: '7', nombre_comercial: 'Tienda de prueba', es_verificado: false, estado: 'activo', fecha_registro: null,
+  propietario: { nombre: 'Ana', apellido: null, email: 'ana@tienda.test', telefono: null },
+  sucursales_activas: 0, productos: 2, pedidos: 0, visible_en_catalogo: false };
+const lista = tiendas => ({ data: tiendas });
 
 function retryButton(node) {
   if (!React.isValidElement(node)) return null;
@@ -65,17 +72,20 @@ function retryButton(node) {
 }
 
 test('muestra carga y luego las tiendas del arreglo directo del backend', async (t) => {
-  const app = setup(async () => [tienda]); t.after(app.close);
+  const app = setup(async () => lista([tienda])); t.after(app.close);
   const pending = app.refresh();
   assert.match(app.render(), /Cargando tiendas/);
   await pending;
   const html = app.render();
   assert.match(html, /Tienda de prueba/);
+  assert.match(html, /Por aprobar/);
+  assert.match(html, /Aprobar tienda/);
+  assert.match(html, /No visible en el catálogo/);
   assert.doesNotMatch(html, /Sin tiendas registradas|role="alert"/);
 });
 
 test('un arreglo válido vacío muestra el estado vacío', async (t) => {
-  const app = setup(async () => []); t.after(app.close);
+  const app = setup(async () => lista([])); t.after(app.close);
   await app.refresh();
   assert.match(app.render(), /Sin tiendas registradas/);
   assert.doesNotMatch(app.render(), /role="alert"/);
@@ -94,7 +104,7 @@ test('error HTTP muestra error y acción de reintento, sin estado vacío', async
 });
 
 test('formatos inesperados y registros inválidos se rechazan explícitamente', async () => {
-  for (const payload of [null, {}, { data: [tienda] }, 'error', [null], [{}], [{ id: 1 }], [{ ...tienda, nombre_comercial: 42 }]]) {
+  for (const payload of [null, {}, [tienda], 'error', lista([null]), lista([{}]), lista([{ id: 1 }]), lista([{ ...tienda, nombre_comercial: 42 }])]) {
     const app = setup(async () => payload);
     try {
       await assert.rejects(app.consultarTiendas(), app.RespuestaTiendasInvalida);
@@ -113,7 +123,7 @@ test('la acción de reintento recupera la lista después de un error', async (t)
   const app = setup(async () => {
     attempts++;
     if (attempts === 1) throw new Error('HTTP 500 simulado');
-    return new Promise(resolve => { complete = () => resolve([tienda]); });
+    return new Promise(resolve => { complete = () => resolve(lista([tienda])); });
   }); t.after(app.close);
   await app.refresh();
   const button = retryButton(app.tree());
@@ -131,7 +141,7 @@ test('la acción de reintento recupera la lista después de un error', async (t)
 
 test('un error al actualizar datos previos tampoco se oculta tras la lista', async (t) => {
   let fail = false;
-  const app = setup(async () => { if (fail) throw new Error('HTTP 503 simulado'); return [tienda]; });
+  const app = setup(async () => { if (fail) throw new Error('HTTP 503 simulado'); return lista([tienda]); });
   t.after(app.close);
   await app.refresh();
   fail = true;

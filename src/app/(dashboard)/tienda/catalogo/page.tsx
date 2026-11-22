@@ -70,7 +70,7 @@ export default function CatalogoPage() {
     queryFn: async () => {
       const tienda = await proveedoresService.obtenerMiTienda(usuario?.proveedor_id, usuario?.id);
       if (!tienda) throw new Error('No hay una tienda vinculada a esta sesión.');
-      const productos = await itemsService.listarCatalogo({ proveedor_id: Number(tienda.id) });
+      const productos = await itemsService.listarMiTienda();
       if (productos.some(item => String(item.proveedor_id) !== String(tienda.id))) {
         throw new Error('El catálogo recibido no corresponde a esta tienda.');
       }
@@ -202,9 +202,16 @@ export default function CatalogoPage() {
                     {formatMoneda(Number(prod.precio))}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Stock: {prod.inventario_stock ?? 0} un.
+                    {prod.es_servicio ? 'Servicio' : `Stock: ${prod.inventario_stock ?? 0} un.`}
                   </span>
                 </div>
+                {(prod.variaciones_item?.length ?? 0) > 0 && (
+                  <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                    {prod.variaciones_item?.map(v => (
+                      <li key={v.id}>{v.nombre_variacion}{v.stock != null ? ` · stock ${v.stock}` : ''}</li>
+                    ))}
+                  </ul>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2"><EdicionProducto producto={prod} /><ResenasProducto itemId={prod.id} /></div>
               </CardContent>
             </Card>

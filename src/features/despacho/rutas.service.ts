@@ -18,7 +18,7 @@ const activosSchema = z.object({ data: z.array(z.object({
 })) });
 const asignacionesSchema = z.object({ data: z.array(z.object({
   id: z.string().min(1), fecha_entrega: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  repartidor_id: idSchema,
+  repartidor_id: idSchema, estado: z.string().optional(),
 })) });
 const rutasSchema = z.object({ success: z.literal(true), data: z.array(z.object({
   id: z.string().min(1), nombre: z.string(), fecha_entrega: z.string(), zona_id: z.string(),

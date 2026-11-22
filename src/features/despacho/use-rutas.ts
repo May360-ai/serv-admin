@@ -77,6 +77,14 @@ export function useArmarRutas() {
       toast.success(
         `Armado completado: ${resultado.rutas_creadas} rutas, ${resultado.pedidos_asignados} pedidos asignados`
       );
+      // Los pedidos que no entraron se informan: no se ocultan como si el armado los hubiera cubierto.
+      if (resultado.pedidos_sin_sucursal) {
+        toast.warning(`${resultado.pedidos_sin_sucursal} pedido(s) sin sucursal habilitada para su zona: revisa las sucursales de la tienda.`);
+      }
+      const sinRepartidor = (resultado.pedidos_sin_asignar ?? 0) - (resultado.pedidos_sin_sucursal ?? 0);
+      if (sinRepartidor > 0) {
+        toast.warning(`${sinRepartidor} pedido(s) quedaron sin ruta por falta de repartidores disponibles.`);
+      }
     },
     onError: (error: Error) => {
       toast.error(`Error al armar rutas: ${error.message}`);

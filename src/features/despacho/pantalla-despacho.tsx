@@ -75,16 +75,16 @@ export default function RutasPage() {
 
   const adminPedidosQuery = useQuery({
     queryKey: ['pedidos', 'despacho-admin', fechaSeleccionada, zonaSeleccionada ?? 'todas'],
-    queryFn: ({ signal }) =>
-      consultarPedidosAdministracion(
-        {
-          fecha_entrega: fechaSeleccionada,
-          zona_id: zonaSeleccionada ?? undefined,
-          sin_ruta: true,
-          page_size: 100,
-        },
-        signal
-      ),
+    // Recorre todas las páginas: un día con más de 100 pedidos libres no debe verse incompleto.
+    queryFn: async ({ signal }) => {
+      const filtros = { fecha_entrega: fechaSeleccionada, zona_id: zonaSeleccionada ?? undefined, sin_ruta: true, page_size: 100 };
+      const primera = await consultarPedidosAdministracion({ ...filtros, page: 1 }, signal);
+      const data = [...primera.data];
+      for (let page = 2; page <= primera.meta.total_pages && page <= 50; page++) {
+        data.push(...(await consultarPedidosAdministracion({ ...filtros, page }, signal)).data);
+      }
+      return { ...primera, data };
+    },
     enabled: Boolean(fechaSeleccionada) && esAdmin,
   });
 

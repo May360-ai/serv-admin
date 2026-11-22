@@ -241,7 +241,7 @@ test('D10 proveedor: resolver tienda falla cerrado, sin consulta global ni produ
   app.failure(null); app.response(proveedor);
   // Mismo mock responde tienda válida al resolver; el catálogo recibe un objeto y se rechaza.
   await assert.rejects(query.queryFn(), /catálogo inesperada/);
-  assert.equal(app.requests.at(-1), '/api/items?proveedor_id=8');
+  assert.equal(app.requests.at(-1), '/api/items/mi-tienda');
   app.response(url => url.startsWith('/api/proveedores') ? proveedor : [{ ...producto, proveedor_id: 99 }]);
   await assert.rejects(query.queryFn(), /no corresponde a esta tienda/);
   app.response(url => url.startsWith('/api/proveedores') ? proveedor : [producto]);
@@ -324,10 +324,10 @@ test('D12: escribir o cambiar fecha/zona filtra la caché sin solicitudes nuevas
 
 test('D12 UI pedidos: ofrece en_progreso y restablece texto, estado y fecha juntos', () => {
   const app = pageSetup('app/(dashboard)/pedidos/page.tsx', 'proveedor');
-  app.states.splice(0, 4, false, 'ana', 'en_progreso', '2026-11-12');
+  app.states.splice(0, 3, 'ana', 'en_progreso', '2026-11-12');
   assert.match(app.html(), /value="en_progreso"/);
   find(app.tree(), node => node.props.children === 'Restablecer filtros').props.onClick();
-  assert.deepEqual(app.states.slice(1, 4), ['', '', '']);
+  assert.deepEqual(app.states.slice(0, 3), ['', '', '']);
 });
 
 test('Cierre D10: métricas de una sesión anterior no contaminan el siguiente usuario ni rol', async t => {
@@ -363,12 +363,19 @@ test('Integración aislada: login persiste sesión, resuelve proveedor y logout 
 test('Integración aislada: middleware navega por rol y deniega vistas ajenas', async t => {
   const originalFetch = global.fetch; t.after(() => { global.fetch = originalFetch; });
   const { NextRequest } = require('next/server'); const { middleware } = loader()('middleware.ts');
-  const destinos = { administrador: '/admin/metricas', proveedor: '/tienda/rutas', repartidor: '/entregas', cliente: '/catalogo' };
+  const destinos = { administrador: '/admin/metricas', proveedor: '/tienda/rutas', cliente: '/catalogo' };
   for (const [rol, destino] of Object.entries(destinos)) {
     global.fetch = async () => Response.json({ rol_nombre: rol });
     const request = pathname => new NextRequest(`http://localhost${pathname}`, { headers: { cookie: 'serv_token=sesion-ficticia' } });
     assert.ok((await middleware(request('/dashboard'))).headers.get('location').endsWith(destino));
     assert.equal((await middleware(request(destino))).headers.get('x-middleware-next'), '1');
     if (rol !== 'administrador') assert.match((await middleware(request('/admin/metricas'))).headers.get('location'), /unauthorized/);
+  }
+  // El repartidor usa solo la app Android: cualquier vista web cierra la sesión y lo devuelve al login.
+  global.fetch = async () => Response.json({ rol_nombre: 'repartidor' });
+  for (const ruta of ['/dashboard', '/entregas', '/chat', '/pedidos/1']) {
+    const respuesta = await middleware(new NextRequest(`http://localhost${ruta}`, { headers: { cookie: 'serv_token=sesion-ficticia' } }));
+    assert.match(respuesta.headers.get('location'), /\/login\?error=repartidor_app$/);
+    assert.match(respuesta.headers.get('set-cookie') ?? '', /serv_token=;/);
   }
 });

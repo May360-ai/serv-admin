@@ -33,7 +33,7 @@ function loader(mocks = {}) {
 const ruta = { id: 'ruta-1', nombre: 'Centro', fecha_entrega: '2026-11-12', proveedor_id: 8, zona_id: '2',
   repartidor_id: '1', pedidos: [], capacidad_maxima: 6, estado: 'armando' };
 const pedido = { id: '10', cliente_nombre: 'Cliente QA', cliente_telefono: '000', fecha_entrega: '2026-11-12',
-  tienda_id: '8', zona_id: '2', estado: 'pendiente', direccion: { calle: 'Prueba', numero: '' },
+  tienda_id: '8', zona_id: '2', estado: 'aceptado', direccion: { calle: 'Prueba', numero: '' },
   ventana_horaria: { desde: '12:00', hasta: '12:00' } };
 const activos = [{ id: '1', nombre: 'Actual' }, { id: '2', nombre: 'Libre sin ruta previa' }, { id: '3', nombre: 'Ocupado' }];
 const asignaciones = [ruta, { ...ruta, id: 'otra-tienda', proveedor_id: 9, zona_id: '9', repartidor_id: '3' }];
@@ -42,19 +42,23 @@ const reglas = loader()('elegibilidad.ts');
 test('D05: incluye al activo sin ruta previa y excluye al ocupado en otra tienda o zona', () => {
   assert.deepEqual(reglas.repartidoresElegibles(activos, asignaciones, ruta).map(r => r.id), ['2']);
 });
-test('D05: una asignación en otra fecha no bloquea; una ruta completada del mismo día sí', () => {
+test('D05: otra fecha o una salida terminada del mismo día no bloquean; otra ruta en armado sí', () => {
   assert.deepEqual(reglas.repartidoresElegibles(activos, [
     { ...asignaciones[1], fecha_entrega: '2026-11-13' },
   ], ruta).map(r => r.id), ['2', '3']);
-  assert.deepEqual(reglas.repartidoresElegibles(activos, [{ ...asignaciones[1], estado: 'completada' }], ruta).map(r => r.id), ['2']);
+  assert.deepEqual(reglas.repartidoresElegibles(activos, [{ ...asignaciones[1], estado: 'completada' }], ruta).map(r => r.id), ['2', '3']);
+  assert.deepEqual(reglas.repartidoresElegibles(activos, [{ ...asignaciones[1], estado: 'armando' }], ruta).map(r => r.id), ['2']);
   assert.deepEqual(reglas.repartidoresElegibles(activos, [], { ...ruta, estado: 'en_ruta' }), []);
 });
 
-for (const estado of ['pendiente', 'aceptado']) {
+for (const estado of ['aceptado', 'agendado', 'en_progreso']) {
   test(`D11: ruta compatible con capacidad configurable y pedido ${estado}`, () => {
     assert.equal(reglas.esRutaCompatible({ ...pedido, estado }, { ...ruta, pedidos: Array(5).fill(pedido) }), true);
   });
 }
+test('D11: un pedido pendiente no se ofrece a rutas hasta que la tienda lo acepte', () => {
+  assert.equal(reglas.esRutaCompatible({ ...pedido, estado: 'pendiente' }, ruta), false);
+});
 for (const [caso, cambioRuta, cambioPedido] of [
   ['llena', { pedidos: Array(6).fill(pedido) }, {}],
   ['zona', { zona_id: '3' }, {}], ['proveedor', { proveedor_id: 9 }, {}],

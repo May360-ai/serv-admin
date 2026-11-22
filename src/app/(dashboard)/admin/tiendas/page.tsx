@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { consultarTiendas, RespuestaTiendasInvalida } from './consulta-tiendas';
+import { AccionesTienda } from './acciones-tienda';
 import { ErrorHttp } from '@/lib/error-http';
 import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
@@ -21,9 +22,9 @@ export default function AdminTiendasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Supervisión Global de Tiendas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Tiendas</h1>
         <p className="text-muted-foreground text-sm">
-          Todas las tiendas y negocios registrados en la plataforma SERV
+          Aprueba tiendas nuevas antes de que publiquen su catálogo y suspende las que incumplan.
         </p>
       </div>
 
@@ -62,26 +63,26 @@ export default function AdminTiendasPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{t.nombre_comercial}</CardTitle>
-                    <p className="text-xs text-muted-foreground truncate">{t.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">{t.propietario?.email}</p>
                   </div>
-                  <Badge variant={t.activa ? 'success' : 'secondary'}>
-                    {t.activa ? 'Activa' : 'Pausada'}
+                  <Badge variant={t.estado !== 'activo' ? 'secondary' : t.es_verificado ? 'success' : 'warning'}>
+                    {t.estado !== 'activo' ? 'Suspendida' : t.es_verificado ? 'Aprobada' : 'Por aprobar'}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 text-xs text-muted-foreground">
-                {t.direccion && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{t.direccion}</span>
-                  </div>
-                )}
-                {t.telefono && (
+                {t.propietario?.telefono && (
                   <div className="flex items-center gap-1.5">
                     <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span>{t.telefono}</span>
+                    <span>{t.propietario.telefono}</span>
                   </div>
                 )}
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span>{t.sucursales_activas} sucursal(es) activa(s) · {t.productos} producto(s) · {t.pedidos} pedido(s)</span>
+                </div>
+                <p>{t.visible_en_catalogo ? 'Visible en el catálogo de clientes.' : 'No visible en el catálogo: requiere aprobación, cuenta activa y una sucursal activa.'}</p>
+                <AccionesTienda tienda={t} />
               </CardContent>
             </Card>
           ))}

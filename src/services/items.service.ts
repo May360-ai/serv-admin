@@ -46,6 +46,13 @@ export const itemsService = {
   /**
    * Obtiene todos los productos y servicios disponibles en la plataforma.
    */
+  /** Catálogo completo de la tienda autenticada, incluidos los productos pausados. */
+  async listarMiTienda(): Promise<ItemCatalogo[]> {
+    const { data } = await apiClient.get<ItemCatalogo[]>('/api/items/mi-tienda');
+    if (!Array.isArray(data)) throw new Error('Respuesta de catálogo inesperada.');
+    return data;
+  },
+
   async listarCatalogo(filtros?: {
     categoria_id?: number;
     proveedor_id?: number;

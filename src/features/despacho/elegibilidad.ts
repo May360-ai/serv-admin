@@ -11,6 +11,7 @@ export interface AsignacionRepartidor {
   id: string;
   fecha_entrega: string;
   repartidor_id: string;
+  estado?: string;
 }
 
 // Solo se utiliza con el listado global del administrador, sin filtro de zona.
@@ -19,7 +20,8 @@ export function repartidoresElegibles(
 ): RepartidorActivo[] {
   if (ruta.estado !== 'armando') return [];
   return activos.filter(rep => rep.id !== String(ruta.repartidor_id) && !asignaciones.some(
-    asignacion => asignacion.fecha_entrega === ruta.fecha_entrega &&
+    // Varias salidas por día: solo bloquea otra ruta del repartidor todavía en armado esa fecha.
+    asignacion => asignacion.fecha_entrega === ruta.fecha_entrega && (asignacion.estado ?? 'armando') === 'armando' &&
       asignacion.id !== ruta.id && asignacion.repartidor_id === rep.id,
   ));
 }
@@ -30,7 +32,8 @@ export function esRutaCompatible(pedido: Pedido, ruta: Ruta): boolean {
     !pedido.sucursal_id ||
     !ruta.sucursal?.id ||
     String(pedido.sucursal_id) === String(ruta.sucursal.id);
-  return !pedido.ruta_id && ['pendiente', 'aceptado', 'agendado', 'en_progreso'].includes(pedido.estado) &&
+  // Un pedido pendiente aún no fue aceptado por la tienda y no se despacha.
+  return !pedido.ruta_id && ['aceptado', 'agendado', 'en_progreso'].includes(pedido.estado) &&
     ruta.estado === 'armando' && ruta.repartidor?.estado !== 'inactivo' && Boolean(pedido.zona_id && pedido.tienda_id && pedido.fecha_entrega) &&
     ruta.proveedor_id != null && String(ruta.proveedor_id) === String(pedido.tienda_id) &&
     sucursalCompatible &&

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { EstadoPublicacionTienda } from '@/features/tienda/estado-publicacion';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
@@ -15,27 +16,21 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+const suscribirSinCambios = () => () => {};
+const fechaHoyLegible = () => new Date().toLocaleDateString('es-EC', {
+  timeZone: 'America/Guayaquil', weekday: 'long', day: 'numeric', month: 'long',
+});
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const usuario = useAuthStore((s) => s.usuario);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [fechaActual, setFechaActual] = useState<string>('');
-  const [isMounted, setIsMounted] = useState(false);
+  // En el servidor no hay fecha local ni sesión: se leen solo en el cliente, sin setState dentro de efectos.
+  const fechaActual = useSyncExternalStore(suscribirSinCambios, fechaHoyLegible, () => '');
+  const isMounted = useSyncExternalStore(suscribirSinCambios, () => true, () => false);
 
   const { on, off } = useSocket({ enabled: Boolean(usuario) });
-
-  useEffect(() => {
-    setIsMounted(true);
-    setFechaActual(
-      new Date().toLocaleDateString('es-EC', {
-        timeZone: 'America/Guayaquil',
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      })
-    );
-  }, []);
 
   useEffect(() => {
     if (isMounted && !usuario) {
@@ -57,7 +52,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       void queryClient.invalidateQueries({ queryKey: ['rutas'] });
       void queryClient.invalidateQueries({ queryKey: ['atrasadas'] });
-      void queryClient.invalidateQueries({ queryKey: ['mis-entregas'] });
     };
     const actualizarFlota = () => {
       void queryClient.invalidateQueries({ queryKey: ['flota'] });
@@ -117,6 +111,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 scrollbar-thin">
+          <EstadoPublicacionTienda />
           {children}
         </main>
       </div>

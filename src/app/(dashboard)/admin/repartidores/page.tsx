@@ -28,6 +28,7 @@ function GestionRepartidores() {
   const client = useQueryClient();
   const [fecha, setFecha] = useState(getFechaHoy);
   const [formulario, setFormulario] = useState(false);
+  const [editando, setEditando] = useState<number | null>(null);
   const permitido = usuario?.rol === 'administrador' || usuario?.rol === 'admin';
   const consulta = useQuery({
     queryKey: ['flota', usuario?.id, fecha],
@@ -48,6 +49,12 @@ function GestionRepartidores() {
       await apiClient.post('/api/repartidores', Object.fromEntries(new FormData(form)));
     },
     onSuccess: () => { setFormulario(false); actualizar(); },
+  });
+  const editar = useMutation({
+    mutationFn: async ({ id, form }: { id: number; form: HTMLFormElement }) => {
+      await apiClient.patch(`/api/repartidores/${id}`, Object.fromEntries(new FormData(form)));
+    },
+    onSuccess: () => { setEditando(null); actualizar(); },
   });
   const cambiarEstado = useMutation({
     mutationFn: async ({ id, estado }: { id: number; estado: string }) => {
@@ -96,8 +103,26 @@ function GestionRepartidores() {
         <p className="break-all text-sm">{rep.email}</p>
         {rep.telefono && <p className="text-sm">{rep.telefono}</p>}
         {rep.vehiculo && <p className="text-sm">{rep.vehiculo}</p>}
-        <p>{rep.estado === 'inactivo' ? 'Cuenta inactiva' : rep.rutas.length ? 'Con ruta asignada para esta fecha' : 'Disponible para esta fecha'}</p>
+        <p>{rep.estado === 'inactivo' ? 'Cuenta inactiva'
+          : rep.rutas.some(r => r.estado === 'armando' || r.estado === 'en_ruta') ? 'Con una salida abierta en esta fecha'
+          : rep.rutas.length ? 'Salidas de esta fecha terminadas; puede recibir otra' : 'Sin salidas en esta fecha'}</p>
         {rep.rutas.map(ruta => <p key={ruta.id} className="text-sm">Ruta {ruta.estado.replaceAll('_', ' ')}</p>)}
+        {editando === rep.id ? <form className="space-y-2 border-t pt-2" onSubmit={event => {
+          event.preventDefault();
+          editar.mutate({ id: rep.id, form: event.currentTarget });
+        }}>
+          <fieldset disabled={editar.isPending} className="grid gap-2">
+            <label>Nombre<Input name="nombre" defaultValue={rep.nombre} required maxLength={100} /></label>
+            <label>Apellido<Input name="apellido" defaultValue={rep.apellido ?? ''} maxLength={100} /></label>
+            <label>Teléfono<Input name="telefono" type="tel" defaultValue={rep.telefono ?? ''} maxLength={20} /></label>
+            <label>Vehículo<Input name="vehiculo" defaultValue={rep.vehiculo ?? ''} maxLength={150} /></label>
+          </fieldset>
+          {editar.isError && <p role="alert">{editar.error.message}</p>}
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" isLoading={editar.isPending}>Guardar</Button>
+            <Button type="button" size="sm" variant="outline" disabled={editar.isPending} onClick={() => setEditando(null)}>Cancelar</Button>
+          </div>
+        </form> : <Button variant="outline" onClick={() => { editar.reset(); setEditando(rep.id); }}>Editar datos</Button>}
         <Button variant="outline" disabled={cambiarEstado.isPending} onClick={() => cambiarEstado.mutate({
           id: rep.id, estado: rep.estado === 'activo' ? 'inactivo' : 'activo',
         })}>{rep.estado === 'activo' ? 'Desactivar cuenta' : 'Activar cuenta'}</Button>

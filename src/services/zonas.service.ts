@@ -8,6 +8,7 @@ const zonasSchema = z.object({ success: z.literal(true), data: z.array(z.object(
   activa: z.boolean(), descripcion: z.string().nullable().optional(), created_at: z.string().optional(),
   poligono: z.object({ type: z.literal('Polygon'), coordinates: z.array(z.array(z.array(z.number()))) }).nullable().optional(),
   pedidos_count: z.number().optional(),
+  costo_envio: z.number().nonnegative().nullable().optional(),
 })) });
 
 export const zonasService = {
@@ -20,7 +21,8 @@ export const zonasService = {
     const { data } = await apiClient.get<unknown>('/api/zonas');
     const resultado = zonasSchema.safeParse(data);
     if (!resultado.success) throw new Error('Respuesta de zonas inesperada.');
-    return resultado.data.data.map(zona => ({ ...zona, descripcion: zona.descripcion ?? undefined, created_at: zona.created_at ?? '', poligono: zona.poligono ?? null }));
+    return resultado.data.data.map(zona => ({ ...zona, descripcion: zona.descripcion ?? undefined, created_at: zona.created_at ?? '', poligono: zona.poligono ?? null,
+      costo_envio: zona.costo_envio ?? undefined }));
   },
 
   async listarCategorias(): Promise<Categoria[]> {

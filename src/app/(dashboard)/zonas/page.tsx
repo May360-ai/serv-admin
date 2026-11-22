@@ -23,11 +23,15 @@ import { EditorPoligono, type PoligonoZona } from '@/components/zonas/editor-pol
 import { useAuthStore } from '@/store/auth.store';
 import { esAdministrador } from '@/types/auth';
 
+const formatoEnvio = (valor?: number) => valor == null ? '—' : `$${valor.toFixed(2)}`;
+
 const zonaSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color hexadecimal inválido'),
   capacidad_maxima: z.number({ error: 'Capacidad requerida' }).int().min(1).max(20),
+  costo_envio: z.number({ error: 'Costo de envío requerido' }).min(0).max(100)
+    .refine(v => Math.round(v * 100) === v * 100, 'Usa hasta dos decimales'),
   poligono: z.custom<PoligonoZona>(esPoligono, 'Dibuja el área de cobertura.'),
   activa: z.boolean().optional(),
 });
@@ -84,14 +88,15 @@ function ModalNuevaZona({ open, onOpenChange, zona }: ModalZonaProps) {
     defaultValues: {
       color: '#3B82F6',
       capacidad_maxima: 4,
+      costo_envio: 2.5,
       poligono: null as unknown as PoligonoZona,
     },
   });
 
   useEffect(() => {
     if (open) reset(zona ? { nombre: zona.nombre, descripcion: zona.descripcion ?? '', color: zona.color,
-      capacidad_maxima: zona.capacidad_maxima, poligono: zona.poligono ?? null as unknown as PoligonoZona, activa: zona.activa }
-      : { nombre: '', descripcion: '', color: '#3B82F6', capacidad_maxima: 4, poligono: null as unknown as PoligonoZona, activa: true });
+      capacidad_maxima: zona.capacidad_maxima, costo_envio: zona.costo_envio ?? 2.5, poligono: zona.poligono ?? null as unknown as PoligonoZona, activa: zona.activa }
+      : { nombre: '', descripcion: '', color: '#3B82F6', capacidad_maxima: 4, costo_envio: 2.5, poligono: null as unknown as PoligonoZona, activa: true });
   }, [open, zona, reset]);
 
   const colorActual = watch('color');
@@ -167,8 +172,16 @@ function ModalNuevaZona({ open, onOpenChange, zona }: ModalZonaProps) {
               <p className="text-xs text-destructive">{errors.capacidad_maxima.message}</p>
             )}
             <p className="text-xs text-muted-foreground">
-              Número máximo de pedidos por ruta en esta zona (recomendado: 4)
+              Número máximo de pedidos por salida en esta zona (recomendado: 4). Un repartidor puede hacer varias salidas al día.
             </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="costo-envio-zona">Costo de envío (USD) *</Label>
+            <Input id="costo-envio-zona" type="number" min={0} max={100} step="0.01"
+              {...register('costo_envio', { valueAsNumber: true })} />
+            {errors.costo_envio && <p className="text-xs text-destructive">{errors.costo_envio.message}</p>}
+            <p className="text-xs text-muted-foreground">Se cobra al cliente en cada pedido con destino en esta zona.</p>
           </div>
 
           {zona && (
@@ -237,6 +250,13 @@ function CardZona({ zona, onEdit }: CardZonaProps) {
             <div>
               <p className="text-xs text-muted-foreground">Cap. máxima/ruta</p>
               <p className="text-sm font-semibold">{zona.capacidad_maxima} pedidos</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-2.5">
+            <Package className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Envío</p>
+              <p className="text-sm font-semibold">{formatoEnvio(zona.costo_envio)}</p>
             </div>
           </div>
         </div>

@@ -39,6 +39,12 @@ export class ErrorHttp extends Error {
       TRANSICION_INVALIDA: 'Esta transición de estado no está permitida.',
       PARADA_ANTERIOR_PENDIENTE: 'Completa primero la parada anterior de la ruta.',
       FECHA_REPROGRAMACION_INVALIDA: 'Elige una fecha y hora futuras válidas para reprogramar.',
+      FECHA_REQUERIDA: 'Indica la fecha y hora de entrega.',
+      FUERA_HORARIO: 'La tienda no atiende en la fecha y hora elegidas. Revisa su horario.',
+      TIENDA_NO_DISPONIBLE: 'Esta tienda no está habilitada para recibir pedidos en este momento.',
+      METODO_PAGO_INVALIDO: 'Elige un método de pago válido.',
+      PAGO_CONFIRMADO: 'El pago de este pedido ya fue confirmado.',
+      SALIDA_EN_CURSO: 'El repartidor debe terminar su ruta en curso antes de iniciar otra.',
     };
     const mensajeConfirmacion = status && status >= 400 && status < 500 && codigo && Object.hasOwn(confirmaciones, codigo) ? confirmaciones[codigo] : undefined;
     super(mensajeConfirmacion ?? (status === undefined ? 'No se pudo conectar con el servidor. Comprueba tu conexión y reintenta.'

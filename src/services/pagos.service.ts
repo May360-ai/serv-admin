@@ -1,7 +1,8 @@
 import { apiClient } from '@/lib/api-client';
 import type { Pago } from '@/types';
 
-export type MetodoPago = 'efectivo' | 'transferencia_bancaria' | 'tarjeta_credito' | 'billetera_movil';
+// Sin pasarela de tarjetas: los métodos no presenciales quedan pendientes hasta que la tienda confirma el cobro.
+export type MetodoPago = 'efectivo' | 'transferencia_bancaria' | 'billetera_movil';
 
 export const pagosService = {
   /**

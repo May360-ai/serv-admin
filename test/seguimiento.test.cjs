@@ -211,7 +211,7 @@ test('D07: cambiar de sesión a proveedor o cerrar sesión deshabilita Mis pedid
 test('D07: mutación aceptada invalida ambas vistas y confirma el nuevo estado por GET', async t => {
   const app = setup(t); const { observer } = app.observe(); await settle();
   await app.hooks.useCambiarEstado().mutateAsync({ id: '10', body: { estado: 'cancelado' } }); await settle();
-  assert.deepEqual(app.invalidaciones, [['pedidos'], ['mis-pedidos-cliente']]);
+  assert.deepEqual(app.invalidaciones, [['pedidos'], ['mis-pedidos-cliente'], ['rutas']]);
   assert.equal(observer.getCurrentResult().data[0].estados_pedido.nombre, 'cancelado');
   assert.equal(app.mensajes[0][0], 'success');
 });

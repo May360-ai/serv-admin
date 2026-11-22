@@ -29,7 +29,9 @@ import { Select } from '@/components/ui/select';
 import { formatMoneda } from '@/lib/utils';
 import { PuntoEntrega, type PuntoEntrega as Punto } from '@/components/pedidos/punto-entrega';
 import { zonasService } from '@/services/zonas.service';
-import { pagosService, type MetodoPago } from '@/services/pagos.service';
+import { type MetodoPago } from '@/services/pagos.service';
+import { direccionesService } from '@/services/direcciones.service';
+import { getFechaHoy } from '@/features/despacho/despacho.store';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -37,6 +39,8 @@ export default function CheckoutPage() {
   const usuario = useAuthStore(s => s.usuario);
   const registrar = useMemo(() => crearRegistroPedido(usuario?.id), [usuario?.id]);
   const zonas = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
+  const guardadas = useQuery({ queryKey: ['mis-direcciones', usuario?.id], queryFn: direccionesService.listarMias,
+    enabled: usuario?.rol === 'cliente' });
   const {
     items,
     proveedor_id,
@@ -46,10 +50,10 @@ export default function CheckoutPage() {
     vaciarCarrito,
     obtenerSubtotal,
     obtenerCostoEnvio,
-    obtenerTotal,
   } = useCarritoStore();
 
   const [punto, setPunto] = useState<Punto | null>(null);
+  const [zonaEntregaId, setZonaEntregaId] = useState<string | null>(null);
   const [calle, setCalle] = useState('');
   const ciudad = 'Ambato';
   const [referencia, setReferencia] = useState('');
@@ -60,8 +64,20 @@ export default function CheckoutPage() {
   const [enviando, setEnviando] = useState(false);
 
   const subtotal = obtenerSubtotal();
-  const costoEnvio = obtenerCostoEnvio();
-  const total = obtenerTotal();
+  // El servidor cobra el costo de envío de la zona del punto marcado; aquí se muestra el mismo valor.
+  const zonaEntrega = zonas.data?.find(z => z.id === zonaEntregaId);
+  const costoEnvio = items.length === 0 ? 0 : zonaEntrega?.costo_envio ?? obtenerCostoEnvio();
+  const total = subtotal + costoEnvio;
+  const hoy = getFechaHoy();
+
+  const usarDireccionGuardada = (id: string) => {
+    const guardada = guardadas.data?.find(d => String(d.id) === id);
+    if (!guardada) return;
+    setCalle(guardada.direccion);
+    setReferencia(guardada.referencia ?? '');
+    setPunto({ latitud: guardada.latitud, longitud: guardada.longitud });
+    setZonaEntregaId(guardada.zona?.id ?? null);
+  };
 
   const handleConfirmarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,16 +109,12 @@ export default function CheckoutPage() {
           cantidad: i.cantidad,
           ...(i.variacion_item_id ? { variacion_item_id: i.variacion_item_id } : {}),
         })),
-      }, usuario, catalogo);
-      try {
-        await pagosService.registrarPago({ pedido_id: Number(pedido.id), metodo_pago: metodoPago });
-      } catch {
-        toast.warning('El pedido se registró, pero el método de pago quedó pendiente de confirmación.');
-      }
+      }, usuario, catalogo, { metodo_pago: metodoPago });
 
       void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       void queryClient.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
-      toast.success(pedido.ruta_id ? 'Pedido asignado a una ruta de entrega.' : 'Pedido registrado, pendiente de asignación.');
+      void queryClient.invalidateQueries({ queryKey: ['mis-direcciones'] });
+      toast.success('Pedido enviado. La tienda lo revisará y te avisaremos cuando lo acepte.');
       vaciarCarrito();
       router.push('/mis-pedidos');
     } catch (error) {
@@ -240,7 +252,20 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <PuntoEntrega value={punto} onChange={setPunto} zonas={zonas.data ?? []} />
+              {(guardadas.data?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="direccion-guardada">Usar una dirección anterior</Label>
+                  <Select id="direccion-guardada" defaultValue="" onChange={e => usarDireccionGuardada(e.target.value)}>
+                    <option value="">Elegir dirección guardada…</option>
+                    {guardadas.data?.map(d => (
+                      <option key={d.id} value={String(d.id)}>
+                        {d.direccion}{d.referencia ? ` · ${d.referencia}` : ''}{d.zona ? ` (${d.zona.nombre})` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              <PuntoEntrega value={punto} onChange={(nuevo, zonaId) => { setPunto(nuevo); setZonaEntregaId(zonaId); }} zonas={zonas.data ?? []} />
               <div className="space-y-1.5">
                 <Label htmlFor="calle">Dirección de Entrega (Calle y Número) *</Label>
                 <Input
@@ -287,6 +312,7 @@ export default function CheckoutPage() {
                   <Input
                     id="fecha_entrega"
                     type="date"
+                    min={hoy}
                     value={fechaEntrega}
                     onChange={(e) => setFechaEntrega(e.target.value)}
                     required
@@ -326,7 +352,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Truck className="h-3.5 w-3.5" />
-                    Costo de envío estándar
+                    {zonaEntrega ? `Envío a ${zonaEntrega.nombre}` : 'Costo de envío (según zona)'}
                   </span>
                   <span className="font-medium text-foreground">{formatMoneda(costoEnvio)}</span>
                 </div>
@@ -341,7 +367,6 @@ export default function CheckoutPage() {
                 <Select id="metodo-pago" value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPago)}>
                   <option value="efectivo">Efectivo contraentrega</option>
                   <option value="transferencia_bancaria">Transferencia bancaria</option>
-                  <option value="tarjeta_credito">Tarjeta de crédito</option>
                   <option value="billetera_movil">Billetera móvil</option>
                 </Select>
               </div>
@@ -349,7 +374,8 @@ export default function CheckoutPage() {
               <div className="p-3 bg-muted/30 rounded-lg border border-border text-xs text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground">💡 Logística de Última Milla SERV</p>
                 <p>
-                  El pedido será agrupado en las rutas de reparto optimizadas de la tienda y se notificará en tiempo real.
+                  La tienda revisa y acepta tu pedido; luego se agrupa en sus rutas de reparto y verás el avance en Mis pedidos.
+                  Los pagos por transferencia o billetera quedan pendientes hasta que la tienda confirme el cobro.
                 </p>
               </div>
 

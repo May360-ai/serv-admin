@@ -50,6 +50,14 @@ const ICONO_ACCION: Record<string, React.ElementType> = {
   cancelado: XCircle,
 };
 
+// Texto de la acción según el estado actual: cancelar un pedido aún no aceptado equivale a rechazarlo.
+function etiquetaAccion(actual: EstadoPedido, accion: EstadoPedido, rol?: string) {
+  if (accion === 'aceptado') return 'Aceptar pedido';
+  if (accion === 'agendado') return 'Marcar agendado';
+  if (accion === 'cancelado') return actual === 'pendiente' && rol !== 'cliente' ? 'Rechazar pedido' : 'Cancelar pedido';
+  return getEstadoLabel(accion);
+}
+
 interface AccionesEstadoProps {
   pedido: Pedido;
 }
@@ -119,7 +127,7 @@ function AccionesEstado({ pedido }: AccionesEstadoProps) {
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  {getEstadoLabel(accion)}
+                  {etiquetaAccion(pedido.estado, accion, usuario?.rol)}
                 </button>
               );
             })}

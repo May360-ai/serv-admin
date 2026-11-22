@@ -31,6 +31,7 @@ export interface Zona {
   color: string;
   capacidad_maxima: number;
   pedidos_count?: number;
+  costo_envio?: number;
   activa: boolean;
   created_at: string;
   poligono?: { type: 'Polygon'; coordinates: number[][][] } | null;
@@ -215,6 +216,8 @@ export interface ArmarRutasRequest {
 export interface ArmarRutasResponse {
   rutas_creadas: number;
   pedidos_asignados: number;
+  pedidos_sin_asignar?: number;
+  pedidos_sin_sucursal?: number;
   rutas: Ruta[];
 }
 

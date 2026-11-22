@@ -1,3 +1,4 @@
+import type { MetodoPago } from './pagos.service';
 import { z } from 'zod';
 import { apiClient } from '@/lib/api-client';
 import type { Pedido, CrearPedidoRequest, CambiarEstadoRequest, FiltrosPedidos, PaginatedResponse, Usuario } from '@/types';
@@ -103,7 +104,8 @@ export function crearRegistroPedido(clienteId?: string) {
   const direccionesConfirmadas = new Map<string, number>();
   let confirmacionPendiente = false;
   let enCurso = false;
-  return async (datos: CrearPedidoRequest, usuario: Usuario | null, catalogo: ItemCatalogo[]): Promise<Pedido> => {
+  return async (datos: CrearPedidoRequest, usuario: Usuario | null, catalogo: ItemCatalogo[],
+    opciones: { metodo_pago?: MetodoPago } = {}): Promise<Pedido> => {
     if (usuario?.rol !== 'cliente') throw new ContratoPedidosError('Solo el cliente autenticado puede crear sus propios pedidos.');
     if (confirmacionPendiente) throw new Error('La respuesta anterior no permitió confirmar el pedido. Revisa Mis pedidos antes de volver a registrarlo.');
     if (enCurso) throw new Error('Ya hay un registro en curso. Espera su resultado antes de reintentar.');
@@ -126,6 +128,8 @@ export function crearRegistroPedido(clienteId?: string) {
         proveedor_id: pedido.proveedor_id, direccion_id: direccionId,
         items_comprados: pedido.items_comprados, fecha_programada,
         instrucciones_especiales: pedido.instrucciones_especiales,
+        // El pago se registra junto con el pedido en la misma operación del servidor.
+        ...(opciones.metodo_pago ? { metodo_pago: opciones.metodo_pago } : {}),
       });
       const response = z.object({ pedido: pedidoSchema }).safeParse(data);
       if (!response.success) {

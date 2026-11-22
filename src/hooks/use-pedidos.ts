@@ -79,6 +79,8 @@ export function useCambiarEstado() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PEDIDOS_QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
+      // Aceptar un pedido del día puede asignarlo a una ruta en el mismo paso.
+      queryClient.invalidateQueries({ queryKey: ['rutas'] });
       toast.success('Estado actualizado');
     },
     onError: (error: Error) => {

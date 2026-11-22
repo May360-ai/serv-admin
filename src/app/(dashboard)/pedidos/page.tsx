@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
+import { Search, Filter, RefreshCw } from 'lucide-react';
 import { useTodosPedidos } from '@/hooks/use-pedidos';
 import { TablaPedidos } from '@/components/pedidos/tabla-pedidos';
-import { ModalNuevoPedido } from '@/components/pedidos/modal-nuevo-pedido';
-import { RoleGuard } from '@/components/auth/role-guard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -30,7 +28,6 @@ const ESTADOS_FILTRO: { value: EstadoPedido | ''; label: string }[] = [
 
 export default function PedidosPage() {
   const usuario = useAuthStore(s => s.usuario);
-  const [modalOpen, setModalOpen] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPedido | ''>('');
   const [fechaFiltro, setFechaFiltro] = useState('');
@@ -55,15 +52,9 @@ export default function PedidosPage() {
             {!usuario || isLoading ? 'Cargando...' : isError ? 'Consulta no disponible' : `${pedidos.length} pedido(s) encontrado(s)`}
           </p>
         </div>
-        <RoleGuard allowedRoles={['cliente']}>
-          <Button onClick={() => setModalOpen(true)} data-cy="btn-nuevo-pedido">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Pedido
-          </Button>
-        </RoleGuard>
       </div>
 
-      <p className="text-sm text-muted-foreground">{usuario?.rol === 'cliente' ? 'Pedidos de tu cuenta de cliente.' : usuario?.rol === 'proveedor' ? 'Pedidos de tu tienda. Los filtros se aplican a este listado.' : 'La consulta administrativa global requiere un contrato de API adicional.'}</p>
+      <p className="text-sm text-muted-foreground">Pedidos de tu tienda. Acepta los pendientes para que entren al despacho; los filtros se aplican a este listado.</p>
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3 p-3 bg-card rounded-lg border border-border">
@@ -124,11 +115,6 @@ export default function PedidosPage() {
         <p>{error.message}</p>
         {!(error instanceof ContratoPedidosError) && (!(error instanceof ErrorHttp) || error.reintentable) && <Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
       </div> : <TablaPedidos pedidos={pedidos} isLoading={!usuario || isLoading} />}
-
-      {/* Modal accesible únicamente por rol cliente */}
-      <RoleGuard allowedRoles={['cliente']}>
-        <ModalNuevoPedido open={modalOpen} onOpenChange={setModalOpen} />
-      </RoleGuard>
     </div>
   );
 }

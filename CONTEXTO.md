@@ -1,12 +1,12 @@
 # Contexto de SERV para el equipo y sus agentes
 
-Revisado el 17 de noviembre de 2026 contra el código de los tres repositorios. Esta es una foto del sistema, no una lista de tareas pendientes. Confirma el comportamiento en el código y actualiza esta guía cuando cambie una regla compartida.
+Revisado el 21 de noviembre de 2026 contra el código de los tres repositorios. Esta es una foto del sistema, no una lista de tareas pendientes. Confirma el comportamiento en el código y actualiza esta guía cuando cambie una regla compartida.
 
 ## Qué construimos
 
-SERV gestiona pedidos y su entrega: el cliente hace un pedido, la tienda lo prepara y organiza el despacho por fecha y zona, y el repartidor avanza las paradas desde Android. La tienda consulta estados y seguimiento. El proyecto incluye administración de tiendas, zonas y repartidores, chat de pedido, reprogramaciones e intentos fallidos.
+SERV gestiona pedidos y su entrega: el cliente hace un pedido, la tienda lo prepara y organiza el despacho por fecha y zona, y el repartidor avanza las paradas desde Android. La tienda consulta estados y seguimiento. El proyecto incluye administración de tiendas, zonas y repartidores, chat de pedido, pagos, reprogramaciones e intentos fallidos.
 
-Roles: cliente, proveedor (tienda), repartidor y administración. El backend reconoce también el alias admin. La autorización se comprueba en el servidor; ocultar un botón no protege una operación.
+Roles: cliente, proveedor (tienda), repartidor y administración (admin / administrador). Todos los endpoints HTTP autenticados y la conexión Socket.IO comprueban que la cuenta siga con estado activo; ocultar un botón no protege una operación.
 
 ## Repositorios
 
@@ -21,11 +21,11 @@ Son repositorios Git independientes; no asumas un monorepo ni rutas absolutas de
 ## Flujo y reglas que deben conservarse
 
 1. Fecha de registro y fecha/hora programada son conceptos distintos. El día operativo usa America/Guayaquil.
-2. El armado agrupa por fecha, zona y tienda, respeta capacidad y disponibilidad de repartidores. Si no puede asignar un pedido, debe quedar pendiente y visible; no inventar repartidores ni asignaciones.
+2. El armado agrupa por fecha, zona, tienda y sucursal. La sucursal se elige entre las habilitadas que cubren la zona, por distancia en línea recta al destino. Para hoy o fechas pasadas, el repartidor se elige por distancia en línea recta a la sucursal con GPS activo y actualizado en los últimos 45 segundos y sin ruta asignada ese día; para fechas futuras (> hoy en America/Guayaquil), entre repartidores activos sin ruta asignada en esa fecha. Si no hay candidatos, el pedido queda pendiente; no se usan posiciones antiguas en despachos del día.
 3. Un pedido no debe duplicarse en rutas. Las mutaciones de despacho usan transacciones y un bloqueo compartido de PostgreSQL. Preservar esa protección ante solicitudes simultáneas.
-4. Las rutas usan estados armando, en_ruta y cerrada. Las entregas avanzan de forma secuencial; el backend valida la transición y el repartidor asignado.
+4. Las rutas usan estados armando, en_ruta y cerrada. Los pedidos en estado pendiente, aceptado, agendado o en_progreso son asignables a rutas en armando. Las entregas avanzan de forma secuencial; el backend valida la transición y el repartidor asignado. Al cancelar un pedido desde cliente o tienda (bloqueado si ya está en_camino), se restaura el stock de las variaciones, se desvincula/reordena la ruta y se notifica por Socket.IO.
 5. Un intento fallido conserva el motivo y permite seguir con la próxima parada. Reprogramar conserva historial y exige fecha/hora futuras, repartidor y motivo.
-6. La tienda solo opera sobre su propio alcance. Un repartidor solo modifica sus rutas. Las cuentas inactivas pierden acceso a sus operaciones.
+6. La tienda solo opera sobre su propio alcance; el stock de variaciones se valida y descuenta atómicamente al crear el pedido. Un repartidor solo modifica sus rutas. Las cuentas inactivas pierden acceso a HTTP y Socket.IO. Los pagos pueden registrarse en checkout (`POST /api/pagos`) o confirmarse por la tienda (`PATCH /api/pagos/:pedido_id/confirmar`).
 7. Persistir antes de notificar. Socket.IO autentica con JWT y limita eventos por destinatario/tienda; al recuperar conexión hay que consultar de nuevo el estado.
 8. El chat se limita a participantes reales del pedido y al interlocutor seleccionado. Nunca emitir conversaciones a todos los usuarios.
 
@@ -33,9 +33,10 @@ Son repositorios Git independientes; no asumas un monorepo ni rutas absolutas de
 
 - Completar una entrega exige en la API ubicación de hasta 30 segundos, precisión positiva de hasta 50 m y distancia más precisión dentro de SERV_DELIVERY_CONFIRM_RADIUS_M (150 m por defecto; rango 10–500 m). Android pide una lectura posterior al toque y la web solicita GPS nuevo. Los rechazos conservan el estado. La evidencia queda en pedidos.confirmacion_entrega (JSONB, migración confirmacion-entrega.sql). La tienda propia o administración puede completar excepcionalmente la próxima parada en camino con motivo de 10–500 caracteres desde despacho; queda actor/fecha/motivo. El repartidor no puede autorizarla. El cambio genérico de estado no completa ni reabre entregas finalizadas. La evidencia GPS no se expone en el listado del cliente y el GPS reportado no es una prueba antifraude absoluta.
 
-- Al crear pedidos, el cliente confirma un punto manual o GPS en la web (checkout y Nuevo pedido). La API exige destino propio con coordenadas válidas, ciudad Ambato y zona activa, y copia el punto al pedido. Los históricos no se modifican automáticamente.
-- La cobertura inicial es un radio configurable de 15 km desde -1.249, -78.615 mediante SERV_DELIVERY_RADIUS_KM. GET /api/zonas/cobertura publica esa regla para la web. Las zonas no tienen polígonos: este radio no demuestra pertenencia a una zona concreta ni valida semánticamente la dirección.
-- Seguimiento: Android comparte GPS mediante un servicio en primer plano con notificación y opción de detener. Despacho consulta la última señal de la ruta; la API oculta puntos con más de un minuto sin actualizar.
+- Al crear pedidos, el cliente confirma un punto manual o GPS en la web (checkout). La zona se determina por un polígono GeoJSON activo y la API vuelve a validarlo; no se admiten fechas programadas pasadas. Cada tienda administra sucursales activas con punto de retiro y una o más zonas de cobertura. El pedido y su ruta conservan la sucursal elegida.
+- La cobertura inicial sigue limitada a un radio configurable de 15 km desde -1.249, -78.615 mediante SERV_DELIVERY_RADIUS_KM. La dirección debe caer además en exactamente un polígono activo; al crear o editar zonas se rechaza el solapamiento con polígonos activos existentes (409 ZONA_SOLAPADA). Las zonas históricas sin polígono deben dibujarse en administración antes de que admitan nuevas direcciones.
+- Disponibilidad: el repartidor puede activar «Disponible» en Android antes de tener ruta; la app comparte GPS cada diez segundos con servicio en primer plano y puede detenerlo. Despacho solo asigna en el día con señal de hasta 45 segundos. Al avanzar una entrega a en_camino desde Android con disponibilidad activa, el servicio pasa automáticamente del modo disponibilidad al seguimiento de la ruta activa.
+- Seguimiento: en una ruta activa, Android comparte mediante servicio en primer plano. En armando, la previsualización de recorrido incluye el punto de retiro de la sucursal. Despacho y cliente consultan la ubicación de ruta mientras el pedido esté activo en ruta; la API oculta puntos con más de un minuto sin actualizar.
 - Recorrido: Android obtiene su ubicación y muestra el trazado por calles con Leaflet, teselas OpenStreetMap y OSRM. Las teselas dibujan el mapa; OSRM calcula tiempos y geometría. La API OSM v0.6 no es un motor de rutas.
 - Las coordenadas específicas del pedido prevalecen sobre las de su dirección. Editar un punto de entrega no modifica la dirección reutilizada por otros pedidos.
 - La propuesta optimiza las paradas sin iniciar, conserva las iniciadas y la precedencia de horarios. Búsqueda exacta hasta ocho paradas sin iniciar y heurística para más.
@@ -81,10 +82,9 @@ Para repartir tareas, delimitar por módulo y contrato: por ejemplo, API de flot
 
 Esta guía existe en los tres repositorios para que funcione con clones independientes. Cuando cambie una regla compartida, actualizar sus tres copias. No depende del historial de un chat, skills locales ni archivos de otra computadora. Los documentos académicos originales no se incluyen aquí; esta guía describe el código verificado y no reemplaza sus requisitos.
 
+## Fotos, catálogo, pagos y valoraciones (21 de noviembre de 2026)
 
-## Fotos, catálogo y valoraciones (18 de noviembre de 2026)
-
-Android organiza el trabajo en Mapa, Pedidos y Ayuda. El detalle muestra cliente, productos, cantidades, referencias e instrucciones; Ayuda abre el chat con la tienda que despacha ese pedido. Las cantidades describen el contenido, no peso ni volumen. Los perfiles admiten una foto propia en web y Android. El repartidor captura un comprobante antes de confirmar: la API lo exige incluso en la excepción de despacho; cliente y tienda lo ven en el detalle. Las pruebas físicas de esta versión Android quedan pendientes por decisión del usuario.
+Android organiza el trabajo en Mapa, Pedidos y Ayuda, con refresco silencioso periódico y cierre de sesión únicamente ante errores de autenticación o cuenta inactiva. El detalle muestra cliente, productos, cantidades, referencias e instrucciones; Ayuda permite chatear con la tienda o con el cliente del pedido seleccionado. Las cantidades describen el contenido, no peso ni volumen. Los perfiles admiten una foto propia en web y Android. El repartidor captura un comprobante antes de confirmar: la API lo exige incluso en la excepción de despacho; cliente y tienda lo ven en el detalle. Las pruebas físicas de esta versión Android quedan pendientes por decisión del usuario.
 
 Migraciones aditivas: `fotos-usuarios-entregas.sql`, luego `catalogo-stock-resenas.sql`, regenerar Prisma y reiniciar API. Imágenes binarias de hasta 5 MB, normalizadas a JPEG sin metadatos y hasta 600 KB por foto. Perfil y comprobante requieren autorización; la imagen del producto activo es pública. Los binarios se guardan en tablas BYTEA con RLS y sin acceso directo anon/authenticated; revisar retención y almacenamiento de objetos antes de escalar.
 

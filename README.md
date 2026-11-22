@@ -26,7 +26,7 @@ Panel en `http://localhost:3000`. `npm test` para pruebas. `npm run build` + `np
 
 ## Entregas y chat
 
-El checkout y Nuevo pedido incluyen un mapa de entrega: el cliente puede usar su GPS (con permiso) o seleccionar un punto manual, revisarlo y confirmarlo. Cambiar el punto exige confirmarlo de nuevo. Si rechaza el GPS puede usar el mapa, incluido el control por teclado y la selección del centro. La ciudad de entrega es Ambato. El mapa obtiene el área permitida de `/api/zonas/cobertura`; las zonas de reparto se eligen por separado y la API verifica que estén activas. La API debe actualizarse antes que la web: los pedidos nuevos requieren coordenadas y conservan su propio destino.
+El checkout y Nuevo pedido muestran en el mapa los polígonos de las zonas. El cliente puede usar su GPS o marcar el destino; el servidor determina la zona por ese punto. Una tienda configura sucursales con dirección de retiro, punto en el mapa y zonas que atiende. La API debe actualizarse antes que la web e instalar la migración indicada en el README de la API.
 
 En **Mis entregas**, cada parada permite contactar al cliente o a la tienda. El enlace abre el pedido y el interlocutor correctos. En **Chat de pedido** también se puede cambiar de contacto; el historial y los eventos en tiempo real se limitan al remitente y al destinatario.
 

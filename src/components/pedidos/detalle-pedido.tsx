@@ -7,8 +7,9 @@ import { ErrorHttp } from '@/lib/error-http';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatMoneda, getEstadoLabel } from '@/lib/utils';
+import { esAdministrador } from '@/types/auth';
 import { FotoPrivada } from './foto-privada';
-import { ResenaRepartidor, ResenasProducto } from './valoraciones';
+import { CalificacionTienda, ResenaRepartidor, ResenasProducto } from './valoraciones';
 import { MapaSeguimientoPedido } from './mapa-seguimiento-pedido';
 
 function fechaConfirmada(value: string | null) {
@@ -19,7 +20,7 @@ export function DetallePedido({ pedidoId }: { pedidoId: string }) {
   const usuario = useAuthStore(s => s.usuario);
   const consulta = useDetallePedido(pedidoId);
   if (!usuario) return <p role="status">Cargando sesión…</p>;
-  if (!['administrador', 'cliente', 'proveedor', 'repartidor'].includes(usuario.rol)) return <p role="alert">Tu sesión no permite consultar el detalle.</p>;
+  if (!esAdministrador(usuario.rol) && !['cliente', 'proveedor', 'repartidor'].includes(usuario.rol)) return <p role="alert">Tu sesión no permite consultar el detalle.</p>;
   if (!idPedidoValido(pedidoId)) return <p role="alert">Identificador de pedido inválido.</p>;
   if (consulta.isLoading || consulta.isPending) return <p role="status">Cargando detalle del pedido…</p>;
   if (consulta.isError) return <section className="space-y-3">
@@ -31,9 +32,9 @@ export function DetallePedido({ pedidoId }: { pedidoId: string }) {
   if (!pedido) return <p role="status">El detalle no está disponible.</p>;
   const verImportes = usuario.rol !== 'repartidor';
   const seguimientoEnVivo =
-    ['cliente', 'proveedor', 'administrador'].includes(usuario.rol) &&
+    (['cliente', 'proveedor'].includes(usuario.rol) || esAdministrador(usuario.rol)) &&
     pedido.ruta?.estado === 'en_ruta' &&
-    ['pendiente', 'en_camino'].includes(pedido.estados_pedido.nombre);
+    ['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino'].includes(pedido.estados_pedido.nombre);
   return <section className="max-w-4xl space-y-5">
     <h1 className="text-2xl font-bold">Pedido {pedido.codigo_seguimiento ?? `PED-${pedido.id}`}</h1>
     <p>{getEstadoLabel(pedido.estados_pedido.nombre)}</p>
@@ -60,12 +61,16 @@ export function DetallePedido({ pedidoId }: { pedidoId: string }) {
     </CardContent></Card>
     {pedido.estados_pedido.nombre === 'completado' && <div className="space-y-4">
       {pedido.ruta && <ResenaRepartidor pedidoId={pedido.id} />}
+      {usuario.rol === 'cliente' && <CalificacionTienda pedidoId={pedido.id} inicial={pedido.calificacion_tienda} />}
       {usuario.rol === 'cliente' && <div className="space-y-2"><h2 className="font-semibold">Valorar los productos recibidos</h2>{pedido.detalle_pedido.map(linea => <div key={linea.id} className="flex flex-wrap items-center gap-2"><span>{linea.items.nombre}</span><ResenasProducto itemId={linea.items.id} /></div>)}</div>}
     </div>}
     {verImportes && <Card><CardHeader><CardTitle>Importes</CardTitle></CardHeader><CardContent>
       {(['subtotal', 'costo_envio', 'impuesto', 'descuento', 'total'] as const).map(campo => <p key={campo}>
         {({ subtotal: 'Subtotal', costo_envio: 'Envío', impuesto: 'Impuesto', descuento: 'Descuento', total: 'Total' })[campo]}: {pedido[campo] == null ? 'No informado' : formatMoneda(Number(pedido[campo]))}
       </p>)}
+      {pedido.pagos && <p className="mt-2 text-sm text-muted-foreground">
+        Pago ({pedido.pagos.metodo_pago.replaceAll('_', ' ')}): {pedido.pagos.estado === 'completado' ? 'Confirmado' : 'Pendiente'}
+      </p>}
     </CardContent></Card>}
   </section>;
 }

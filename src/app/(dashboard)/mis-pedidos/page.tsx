@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { PackageCheck, Clock, MapPin, Store, ShoppingBag } from 'lucide-react';
-import { useMisPedidosCliente } from '@/hooks/use-pedidos';
+import { useCambiarEstado, useMisPedidosCliente } from '@/hooks/use-pedidos';
 import { useAuthStore } from '@/store/auth.store';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 export default function MisPedidosPage() {
   const usuario = useAuthStore(s => s.usuario);
   const { data: pedidos = [], isLoading, isError, error, refetch, isFetching } = useMisPedidosCliente();
+  const { mutate: cambiarEstado, isPending: cancelando } = useCambiarEstado();
   const paginado = usePaginacion(pedidos, String(usuario?.id));
   if (!usuario) return <p role="status">Cargando sesión…</p>;
   if (usuario.rol !== 'cliente') return <p role="alert">Esta vista requiere una sesión de cliente.</p>;
@@ -78,6 +79,21 @@ export default function MisPedidosPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {estadoNombre === 'pendiente' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={Boolean(cancelando)}
+                          onClick={() => {
+                            if (typeof window === 'undefined' || window.confirm(`¿Cancelar el pedido #${p.numero_pedido || `PED-${p.id}`}?`)) {
+                              cambiarEstado?.({ id: String(p.id), body: { estado: 'cancelado' } });
+                            }
+                          }}
+                        >
+                          Cancelar pedido
+                        </Button>
+                      )}
                       <span className="text-xs text-muted-foreground">Total:</span>
                       <span className="font-bold text-lg text-foreground">
                         {formatMoneda(Number(p.total))}

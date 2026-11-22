@@ -1,18 +1,19 @@
 import { z } from 'zod';
 import { apiClient } from '@/lib/api-client';
-import type { EstadoPedido } from '@/types';
-import type { Usuario } from '@/types';
+import { esAdministrador } from '@/types/auth';
+import type { EstadoPedido, Usuario } from '@/types';
 
 export const estadoConsulta = z.enum(['pendiente', 'aceptado', 'agendado', 'en_progreso', 'en_camino', 'completado', 'cancelado', 'fallido']);
 const id = z.number().int().positive().max(2147483647);
 const fecha = z.string().refine(value => Number.isFinite(+new Date(value)));
 const importe = z.union([z.string().min(1), z.number()]).refine(value => Number.isFinite(Number(value)));
 const pedidoLista = z.object({
-  id, cliente_id: id, proveedor_id: id, codigo_seguimiento: z.string().nullable(),
+  id, cliente_id: id, proveedor_id: id, sucursal_id: id.nullable().optional(), codigo_seguimiento: z.string().nullable(),
   estados_pedido: z.object({ nombre: estadoConsulta }), fecha_creacion: fecha.nullable(), fecha_programada: fecha.nullable(),
   total: importe, ruta_id: z.string().min(1).nullable(), usuarios: z.object({ nombre: z.string(), apellido: z.string().nullable() }),
   proveedores: z.object({ nombre_comercial: z.string() }),
-  direcciones: z.object({ id, direccion: z.string(), ciudad: z.string(), zona_id: id.nullable() }).nullable(),
+  direcciones: z.object({ id, direccion: z.string(), ciudad: z.string(), zona_id: id.nullable(),
+    zona: z.object({ id, nombre: z.string() }).nullable().optional() }).nullable(),
 });
 const listado = z.object({ success: z.literal(true), data: z.array(pedidoLista), meta: z.object({
   page: z.number().int().positive(), page_size: z.number().int().min(1).max(100),
@@ -22,11 +23,14 @@ const listado = z.object({ success: z.literal(true), data: z.array(pedidoLista),
 export interface FiltrosAdministracion {
   page?: number; page_size?: number; estado?: EstadoPedido;
   proveedor_id?: string; zona_id?: string; fecha_desde?: string; fecha_hasta?: string;
+  fecha_entrega?: string; sin_ruta?: boolean;
 }
 
 export async function consultarPedidosAdministracion(filtros: FiltrosAdministracion, signal?: AbortSignal) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filtros)) if (value !== undefined && value !== '') params.set(key, String(value));
+  for (const [key, value] of Object.entries(filtros)) {
+    if (value !== undefined && value !== '' && value !== false) params.set(key, String(value));
+  }
   const { data } = await apiClient.get<unknown>(`/api/pedidos?${params}`, { signal });
   const resultado = listado.safeParse(data);
   if (!resultado.success) throw new Error('Respuesta de pedidos administrativos inesperada.');
@@ -52,6 +56,8 @@ const detalleBase = z.object({
     zona: z.object({ id, nombre: z.string() }).nullable(),
   }).nullable(),
   ruta: z.object({ id: z.string().min(1), fecha_entrega: z.string(), estado: z.string(), repartidor_id: id }).nullable(),
+  pagos: z.object({ metodo_pago: z.string(), estado: z.string().nullable(), monto: importe }).nullable().optional(),
+  calificacion_tienda: z.object({ calificacion: z.number().int(), comentario: z.string() }).nullable().optional(),
   detalle_pedido: z.array(z.object({
     id, cantidad: z.number().int().positive(), precio_unitario: importe.optional(), subtotal: importe.optional(),
     items: z.object({ id, nombre: z.string(), es_servicio: z.boolean().nullable() }),
@@ -67,7 +73,7 @@ export async function consultarDetallePedido(pedidoId: string, rol: Usuario['rol
   const resultado = z.object({ success: z.literal(true), data: detalleBase }).safeParse(data);
   if (!resultado.success || String(resultado.data.data.id) !== pedidoId) throw new Error('Respuesta de detalle de pedido inesperada.');
   const pedido = resultado.data.data;
-  if (['cliente', 'administrador'].includes(rol) && pedido.cliente_id === undefined) throw new Error('Respuesta de identidad del pedido incompleta.');
+  if ((rol === 'cliente' || esAdministrador(rol)) && pedido.cliente_id === undefined) throw new Error('Respuesta de identidad del pedido incompleta.');
   if (rol !== 'repartidor' && (pedido.total === undefined || pedido.subtotal === undefined || pedido.costo_envio === undefined ||
     pedido.impuesto === undefined || pedido.descuento === undefined || pedido.detalle_pedido.some(linea => linea.precio_unitario === undefined || linea.subtotal === undefined))) {
     throw new Error('Respuesta de importes del pedido incompleta.');

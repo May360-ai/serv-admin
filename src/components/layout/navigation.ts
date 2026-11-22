@@ -22,6 +22,8 @@ interface NavItem {
 
 const ADMIN_MENU: NavItem[] = [
   { href: '/admin/metricas', label: 'Supervisión Global', icon: BarChart3 },
+  { href: '/pedidos', label: 'Pedidos Globales', icon: Package },
+  { href: '/rutas', label: 'Despacho Global', icon: Route },
   { href: '/admin/zonas', label: 'Zonas de Reparto', icon: MapPin },
   { href: '/admin/repartidores', label: 'Gestión Repartidores', icon: Users },
   { href: '/admin/tiendas', label: 'Tiendas Registradas', icon: Store },

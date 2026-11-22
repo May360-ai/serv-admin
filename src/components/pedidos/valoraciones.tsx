@@ -50,6 +50,47 @@ export function ResenasProducto({ itemId }: { itemId: number }) {
   </>;
 }
 
+export function CalificacionTienda({
+  pedidoId,
+  inicial,
+}: {
+  pedidoId: number;
+  inicial?: { calificacion: number; comentario: string } | null;
+}) {
+  const client = useQueryClient();
+  const [puntos, setPuntos] = useState(String(inicial?.calificacion ?? 5));
+  const [comentario, setComentario] = useState(inicial?.comentario ?? '');
+  const guardar = useMutation({
+    mutationFn: () => apiClient.post(`/api/pedidos/${pedidoId}/calificar`, {
+      calificacion: Number(puntos),
+      comentario: comentario.trim(),
+    }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['pedidos', 'detalle'] });
+      void client.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
+    },
+  });
+  return (
+    <section className="space-y-3 rounded-lg border bg-card p-4">
+      <h2 className="font-semibold">Valoración de la tienda</h2>
+      {inicial && <p className="text-sm text-muted-foreground">Tu calificación actual: {inicial.calificacion}/5</p>}
+      <form className="space-y-3" onSubmit={e => { e.preventDefault(); guardar.mutate(); }}>
+        <label className="block space-y-1">Calificación para la tienda
+          <Select value={puntos} onChange={e => setPuntos(e.target.value)} disabled={guardar.isPending}>
+            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} de 5</option>)}
+          </Select>
+        </label>
+        <label className="block space-y-1">Comentario
+          <Textarea value={comentario} maxLength={1000} onChange={e => setComentario(e.target.value)} disabled={guardar.isPending} />
+        </label>
+        {guardar.isError && <p role="alert">{guardar.error.message}</p>}
+        {guardar.isSuccess && <p role="status">Calificación de tienda guardada.</p>}
+        <Button type="submit" isLoading={guardar.isPending}>Guardar calificación de tienda</Button>
+      </form>
+    </section>
+  );
+}
+
 export function ResenaRepartidor({ pedidoId }: { pedidoId: number }) {
   const usuario = useAuthStore(s => s.usuario);
   const consulta = useQuery({ queryKey: ['resena-repartidor', usuario?.id, pedidoId], queryFn: async () => (await apiClient.get<{ repartidor_nombre: string; calificacion: number | null; comentario: string }>(`/api/pedidos/${pedidoId}/resena-repartidor`)).data });

@@ -13,18 +13,30 @@ import { useRutas, useArmarRutas, RUTAS_QUERY_KEY } from '@/features/despacho/us
 import { useTodosPedidos } from '@/hooks/use-pedidos';
 import { getFechaHoy, useDespachoStore } from '@/features/despacho/despacho.store';
 import { rutasService } from '@/features/despacho/rutas.service';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth.store';
+import { esAdministrador } from '@/types/auth';
+import { consultarPedidosAdministracion } from '@/services/pedidos-consultas.service';
 import { zonasService } from '@/services/zonas.service';
-import type { Ruta } from '@/types';
+import type { Pedido, Ruta } from '@/types';
 import { EntregasAtrasadas } from './entregas-atrasadas';
 import { MapaRepartidores } from './mapa-repartidores';
 import { UbicacionesEntrega } from './ubicaciones-entrega';
 import { ConfirmacionExcepcional } from './confirmacion-excepcional';
 
+const diaGuayaquil = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' });
+const horaGuayaquil = new Intl.DateTimeFormat('es-EC', {
+  timeZone: 'America/Guayaquil',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
 export default function RutasPage() {
   const queryClient = useQueryClient();
+  const usuario = useAuthStore((s) => s.usuario);
+  const esAdmin = esAdministrador(usuario?.rol);
   const { fechaSeleccionada, zonaSeleccionada, setFecha, setZona } = useDespachoStore();
   useEffect(() => {
     if (!fechaSeleccionada) setFecha(getFechaHoy());
@@ -50,18 +62,92 @@ export default function RutasPage() {
 
   const {
     data: pedidosPaginados,
-    isLoading: isLoadingPedidos,
-    refetch: refetchPedidos,
-    error: errorPedidos,
-  } = useTodosPedidos({
+    isLoading: isLoadingPedidosProveedor,
+    refetch: refetchPedidosProveedor,
+    error: errorPedidosProveedor,
+  } = useTodosPedidos(
+    {
+      fecha: fechaSeleccionada,
+      zona_id: zonaSeleccionada ?? undefined,
+    },
+    !esAdmin
+  );
 
-    fecha: fechaSeleccionada,
-    zona_id: zonaSeleccionada ?? undefined,
+  const adminPedidosQuery = useQuery({
+    queryKey: ['pedidos', 'despacho-admin', fechaSeleccionada, zonaSeleccionada ?? 'todas'],
+    queryFn: ({ signal }) =>
+      consultarPedidosAdministracion(
+        {
+          fecha_entrega: fechaSeleccionada,
+          zona_id: zonaSeleccionada ?? undefined,
+          sin_ruta: true,
+          page_size: 100,
+        },
+        signal
+      ),
+    enabled: Boolean(fechaSeleccionada) && esAdmin,
   });
 
-  const pedidosLibres = pedidosPaginados?.data.filter(
-    (p) => !p.ruta_id && p.fecha_entrega === fechaSeleccionada && (!zonaSeleccionada || p.zona_id === zonaSeleccionada) && ['pendiente', 'aceptado'].includes(p.estado)
-  ) ?? [];
+  const pedidosBase: Pedido[] = esAdmin
+    ? (adminPedidosQuery.data?.data ?? []).map((p) => {
+        const programada = p.fecha_programada ? new Date(p.fecha_programada) : null;
+        const fecha = programada ? diaGuayaquil.format(programada) : '';
+        const horario = programada ? horaGuayaquil.format(programada) : '';
+        return {
+          id: String(p.id),
+          numero_pedido: p.codigo_seguimiento || `PED-${p.id}`,
+          ruta_id: p.ruta_id || undefined,
+          cliente_id: String(p.cliente_id),
+          cliente_nombre: [p.usuarios.nombre, p.usuarios.apellido].filter(Boolean).join(' '),
+          cliente_telefono: '',
+          estado: p.estados_pedido.nombre,
+          fecha_registro: p.fecha_creacion ?? '',
+          fecha_entrega: fecha,
+          ventana_horaria: { desde: horario, hasta: horario },
+          direccion: {
+            id: p.direcciones ? String(p.direcciones.id) : '',
+            calle: p.direcciones?.direccion ?? '',
+            numero: '',
+            ciudad: p.direcciones?.ciudad ?? '',
+            zona_id: p.direcciones?.zona_id ? String(p.direcciones.zona_id) : '',
+            referencia: '',
+          },
+          zona_id: p.direcciones?.zona_id ? String(p.direcciones.zona_id) : '',
+          zona: p.direcciones?.zona
+            ? {
+                id: String(p.direcciones.zona.id),
+                nombre: p.direcciones.zona.nombre,
+                color: '#3B82F6',
+                capacidad_maxima: 4,
+                activa: true,
+                created_at: '',
+              }
+            : undefined,
+          tienda_id: String(p.proveedor_id),
+          sucursal_id: p.sucursal_id ? String(p.sucursal_id) : undefined,
+          notas: '',
+          monto_total: Number(p.total),
+          pago_confirmado: false,
+          ultimo_minuto: Boolean(
+            fecha && p.fecha_creacion && diaGuayaquil.format(new Date(p.fecha_creacion)) === fecha
+          ),
+          created_at: p.fecha_creacion ?? '',
+          updated_at: p.fecha_creacion ?? '',
+        };
+      })
+    : (pedidosPaginados?.data ?? []);
+
+  const isLoadingPedidos = esAdmin ? adminPedidosQuery.isLoading : isLoadingPedidosProveedor;
+  const errorPedidos = esAdmin ? adminPedidosQuery.error : errorPedidosProveedor;
+  const refetchPedidos = () => (esAdmin ? adminPedidosQuery.refetch() : refetchPedidosProveedor());
+
+  const pedidosLibres = pedidosBase.filter(
+    (p) =>
+      !p.ruta_id &&
+      p.fecha_entrega === fechaSeleccionada &&
+      (!zonaSeleccionada || p.zona_id === zonaSeleccionada) &&
+      ['pendiente', 'aceptado', 'agendado', 'en_progreso'].includes(p.estado)
+  );
 
   const { mutate: armarRutas, isPending: armando } = useArmarRutas();
 

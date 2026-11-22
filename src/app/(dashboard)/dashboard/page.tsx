@@ -17,6 +17,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
 import { useAuthStore } from '@/store/auth.store';
+import { esAdministrador } from '@/types/auth';
+import { consultarPedidosAdministracion } from '@/services/pedidos-consultas.service';
+import { rutasService } from '@/features/despacho/rutas.service';
+import { getFechaHoy } from '@/features/despacho/despacho.store';
 import Link from 'next/link';
 
 interface MetricaCardProps {
@@ -53,7 +57,7 @@ function MetricaCard({ titulo, valor, descripcion, icon: Icon, colorClass, isLoa
 
 export default function DashboardPage() {
   const usuario = useAuthStore(s => s.usuario);
-  const autorizado = usuario?.rol === 'administrador';
+  const autorizado = esAdministrador(usuario?.rol);
   const { data: metricas, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['dashboard-metricas', usuario?.id, usuario?.rol],
     queryFn: dashboardService.obtenerMetricas,
@@ -62,6 +66,26 @@ export default function DashboardPage() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+
+  const { data: pedidosRecientesResp, isLoading: cargandoPedidosRecientes } = useQuery({
+    queryKey: ['pedidos', 'administracion', 'dashboard-recientes', usuario?.id],
+    queryFn: ({ signal }) => consultarPedidosAdministracion({ page: 1, page_size: 5 }, signal),
+    enabled: autorizado,
+    staleTime: 30_000,
+  });
+
+  const { data: rutasHoyResp, isLoading: cargandoRutasHoy } = useQuery({
+    queryKey: ['rutas', 'dashboard-hoy', usuario?.id],
+    queryFn: () => rutasService.listarRutas({ fecha_entrega: getFechaHoy() }),
+    enabled: autorizado,
+    staleTime: 30_000,
+  });
+
+  const pedidosRecientes =
+    pedidosRecientesResp && 'data' in pedidosRecientesResp && Array.isArray(pedidosRecientesResp.data)
+      ? pedidosRecientesResp.data
+      : [];
+  const rutasHoy = Array.isArray(rutasHoyResp) ? rutasHoyResp : [];
 
   if (!usuario) return <p role="status">Cargando sesión…</p>;
   if (!autorizado) return <p role="alert">Esta vista requiere una sesión de administrador.</p>;
@@ -146,18 +170,36 @@ export default function DashboardPage() {
             <CardTitle className="text-base">Pedidos Recientes</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoading || cargandoPedidosRecientes ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : (
+            ) : pedidosRecientes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Package className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Conectando con el backend para obtener pedidos recientes...
-                </p>
+                <p className="text-sm text-muted-foreground">No hay pedidos registrados.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pedidosRecientes.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/pedidos/${p.id}`}
+                    className="flex items-center justify-between rounded-md border p-2.5 text-sm hover:bg-accent/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {p.codigo_seguimiento || `PED-${p.id}`} · {p.proveedores.nombre_comercial}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.estados_pedido.nombre} · {p.direcciones?.zona?.nombre ?? 'Sin zona'}
+                      </p>
+                    </div>
+                    <span className="font-semibold shrink-0">{formatMoneda(Number(p.total))}</span>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>
@@ -168,18 +210,36 @@ export default function DashboardPage() {
             <CardTitle className="text-base">Estado de Rutas</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isLoading || cargandoRutasHoy ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : (
+            ) : rutasHoy.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Route className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  Las rutas activas aparecerán aquí en tiempo real.
-                </p>
+                <p className="text-sm text-muted-foreground">Sin rutas programadas para hoy.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {rutasHoy.slice(0, 5).map((r) => (
+                  <Link
+                    key={r.id}
+                    href="/rutas"
+                    className="flex items-center justify-between rounded-md border p-2.5 text-sm hover:bg-accent/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {r.nombre} · {r.repartidor?.nombre ?? 'Sin repartidor'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.zona?.nombre ?? 'Sin zona'} · {r.pedidos.length}/{r.capacidad_maxima} paradas
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium capitalize shrink-0">{r.estado}</span>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>

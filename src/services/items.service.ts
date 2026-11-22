@@ -31,6 +31,7 @@ export interface ItemCatalogo {
     id: number;
     nombre_variacion: string;
     precio_adicional: number | string;
+    stock?: number | null;
   }>;
 }
 

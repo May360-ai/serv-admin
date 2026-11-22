@@ -3,6 +3,10 @@
 // Roles soportados (soporta 'admin' y 'administrador' como equivalentes)
 export type Role = 'admin' | 'administrador' | 'proveedor' | 'cliente' | 'repartidor';
 
+export function esAdministrador(rol?: string | null): boolean {
+  return rol === 'admin' || rol === 'administrador';
+}
+
 export interface User {
   id: string;
   nombre: string;
@@ -30,6 +34,8 @@ const RUTAS_ADMIN = [
   '/admin/tiendas',
   '/admin/metricas',
   '/dashboard',
+  '/pedidos',
+  '/rutas',
   '/zonas',
   '/chat',
 ] as const;

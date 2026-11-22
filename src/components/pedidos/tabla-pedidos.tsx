@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import Link from 'next/link';
+import { QueryClientContext } from '@tanstack/react-query';
 import {
   MoreHorizontal,
   CheckCircle2,
@@ -9,7 +10,10 @@ import {
   XCircle,
   Eye,
   Clock,
+  CreditCard,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { pagosService } from '@/services/pagos.service';
 import type { Pedido, EstadoPedido } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,9 +34,9 @@ import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 const ACCIONES_POR_ESTADO: Record<EstadoPedido, EstadoPedido[]> = {
   pendiente: ['aceptado', 'cancelado'],
   aceptado: ['agendado', 'cancelado'],
-  agendado: ['en_camino', 'cancelado'],
-  en_progreso: [],
-  en_camino: ['cancelado'],
+  agendado: ['cancelado'],
+  en_progreso: ['cancelado'],
+  en_camino: [],
   completado: [],
   cancelado: [],
   fallido: [],
@@ -52,13 +56,33 @@ interface AccionesEstadoProps {
 
 function AccionesEstado({ pedido }: AccionesEstadoProps) {
   const usuario = useAuthStore(s => s.usuario);
+  const queryClient = useContext(QueryClientContext);
   const { mutate: cambiarEstado, isPending } = useCambiarEstado();
+  const [confirmandoPago, setConfirmandoPago] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const acciones = usuario?.rol === 'proveedor' ? ACCIONES_POR_ESTADO[pedido.estado]
     : usuario?.rol === 'cliente' && pedido.estado === 'pendiente' ? ['cancelado'] as EstadoPedido[] : [];
+  const puedeConfirmarPago =
+    usuario?.rol === 'proveedor' &&
+    !pedido.pago_confirmado &&
+    pedido.estado !== 'cancelado';
 
-  if (acciones.length === 0) {
+  if (acciones.length === 0 && !puedeConfirmarPago) {
     return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  async function handleConfirmarPago() {
+    setConfirmandoPago(true);
+    try {
+      await pagosService.confirmarPago(pedido.id);
+      await queryClient?.invalidateQueries({ queryKey: ['pedidos'] });
+      toast.success('Pago confirmado');
+      setMenuAbierto(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo confirmar el pago');
+    } finally {
+      setConfirmandoPago(false);
+    }
   }
 
   return (
@@ -88,7 +112,7 @@ function AccionesEstado({ pedido }: AccionesEstadoProps) {
                     cambiarEstado({ id: pedido.id, body: { estado: accion } });
                     setMenuAbierto(false);
                   }}
-                  disabled={isPending}
+                  disabled={isPending || confirmandoPago}
                   className={cn(
                     'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent',
                     accion === 'cancelado' && 'text-destructive hover:bg-destructive/10'
@@ -99,6 +123,16 @@ function AccionesEstado({ pedido }: AccionesEstadoProps) {
                 </button>
               );
             })}
+            {puedeConfirmarPago && (
+              <button
+                onClick={() => void handleConfirmarPago()}
+                disabled={isPending || confirmandoPago}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent"
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                {confirmandoPago ? 'Confirmando...' : 'Confirmar pago'}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -210,9 +244,11 @@ export function TablaPedidos({ pedidos, isLoading }: TablaPedidosProps) {
                 </td>
                 <td className="px-4 py-3">
                   <span className="text-sm font-semibold">{formatMoneda(pedido.monto_total)}</span>
-                  {!pedido.pago_confirmado && (
+                  {pedido.pago_confirmado ? (
+                    <p className="text-xs text-green-600">Pagado</p>
+                  ) : pedido.estado !== 'cancelado' ? (
                     <p className="text-xs text-yellow-600">Pago pendiente</p>
-                  )}
+                  ) : null}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">

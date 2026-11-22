@@ -19,8 +19,28 @@ export class ErrorHttp extends Error {
       PRECISION_INSUFICIENTE: 'La precisión debe ser de 50 m o mejor. Activa la ubicación precisa y reintenta.',
       UBICACION_ANTIGUA: 'La ubicación debe tener menos de 30 segundos. Revisa el GPS y la hora del dispositivo y reintenta.',
       FUERA_RADIO_ENTREGA: 'Estás fuera del radio de confirmación o su margen de precisión. Acércate al destino y reintenta; si no puedes, contacta a despacho.',
+      SIN_SUCURSAL_ZONA: 'Esta tienda todavía no tiene una sucursal habilitada para la zona de entrega.',
+      FUERA_ZONA_POLIGONO: 'El punto marcado está fuera de las zonas de reparto activas.',
+      ZONA_INACTIVA: 'La zona seleccionada está inactiva.',
+      ZONA_SOLAPADA: 'El área dibujada se superpone con otra zona activa.',
+      ZONA_DUPLICADA: 'Ya existe una zona con ese nombre.',
+      STOCK_INSUFICIENTE: 'No hay suficiente stock disponible para uno de los productos.',
+      CONFLICTO_STOCK: 'El stock cambió mientras editabas. Actualiza el catálogo y revisa de nuevo.',
+      FECHA_PASADA: 'La fecha de entrega programada debe ser hoy o una fecha futura.',
+      RUTA_YA_SALIO: 'Conflicto de asignación: La ruta ya salió. Actualiza las opciones y vuelve a intentarlo.',
+      PEDIDO_YA_ASIGNADO: 'Conflicto de asignación: Pedido ya asignado o ruta llena. Actualiza las opciones y vuelve a intentarlo.',
+      REPARTIDOR_NO_DISPONIBLE: 'Conflicto de asignación: Repartidor no disponible. Actualiza las opciones y vuelve a intentarlo.',
+      RUTA_DESTINO_LLENA: 'La ruta destino ya alcanzó su capacidad máxima.',
+      REPARTIDOR_CON_RUTAS: 'Reasigna o cierra las rutas pendientes del repartidor antes de desactivarlo.',
+      CUENTA_INACTIVA: 'Tu cuenta se encuentra inactiva. Contacta a administración.',
+      CREDENCIALES_INVALIDAS: 'Correo o contraseña incorrectos.',
+      EMAIL_DUPLICADO: 'Ese correo electrónico ya está registrado.',
+      PEDIDO_EN_CAMINO: 'No puedes modificar ni cancelar un pedido que ya está en camino.',
+      TRANSICION_INVALIDA: 'Esta transición de estado no está permitida.',
+      PARADA_ANTERIOR_PENDIENTE: 'Completa primero la parada anterior de la ruta.',
+      FECHA_REPROGRAMACION_INVALIDA: 'Elige una fecha y hora futuras válidas para reprogramar.',
     };
-    const mensajeConfirmacion = status && [409, 422].includes(status) && codigo && Object.hasOwn(confirmaciones, codigo) ? confirmaciones[codigo] : undefined;
+    const mensajeConfirmacion = status && status >= 400 && status < 500 && codigo && Object.hasOwn(confirmaciones, codigo) ? confirmaciones[codigo] : undefined;
     super(mensajeConfirmacion ?? (status === undefined ? 'No se pudo conectar con el servidor. Comprueba tu conexión y reintenta.'
       : mensajes[status] ?? (status >= 500 ? 'El servidor no pudo completar la solicitud. Inténtalo de nuevo.' : 'No se pudo completar la solicitud.')));
     this.name = 'ErrorHttp';

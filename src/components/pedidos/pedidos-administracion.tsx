@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatMoneda, getEstadoLabel } from '@/lib/utils';
+import { esAdministrador } from '@/types/auth';
 import type { EstadoPedido } from '@/types';
 
 const inicial = { estado: '', proveedor_id: '', zona_id: '', fecha_desde: '', fecha_hasta: '' };
@@ -28,7 +29,7 @@ export function PedidosAdministracion() {
   const [pageSize, setPageSize] = useState(20);
   const consulta = usePedidosAdministracion({ ...filtros, page, page_size: pageSize });
   if (!usuario) return <p role="status">Cargando sesión…</p>;
-  if (usuario.rol !== 'administrador') return <p role="alert">Esta vista requiere una sesión de administrador.</p>;
+  if (!esAdministrador(usuario.rol)) return <p role="alert">Esta vista requiere una sesión de administrador.</p>;
   const meta = consulta.data?.meta;
   return <section className="space-y-6">
     <div><h1 className="text-2xl font-bold">Supervisión de pedidos</h1>

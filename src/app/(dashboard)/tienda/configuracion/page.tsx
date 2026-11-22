@@ -15,14 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
+import { SucursalesManager } from '@/features/tienda/sucursales-manager';
 
 const tiendaConfigSchema = z.object({
   nombre_comercial: z.string().min(2, 'Nombre comercial requerido'),
   descripcion: z.string().optional(),
-  direccion: z.string().optional(),
   telefono: z.string().optional(),
   hora_apertura: z.string().min(1, 'Hora de apertura requerida'),
   hora_cierre: z.string().min(1, 'Hora de cierre requerida'),
+  atencion_domingo: z.boolean().optional(),
 });
 
 type TiendaConfigForm = z.infer<typeof tiendaConfigSchema>;
@@ -47,18 +48,24 @@ export default function TiendaConfiguracionPage() {
     defaultValues: {
       nombre_comercial: '',
       descripcion: '',
-      direccion: '',
       telefono: '',
       hora_apertura: '09:00',
       hora_cierre: '20:00',
+      atencion_domingo: false,
     },
   });
 
   // Sincronizar el formulario cuando los datos de la tienda llegan del backend
   useEffect(() => {
     if (tienda) {
-      // Extraer hora formateada HH:mm de los horarios guardados en backend
-      const primerHorario = tienda.horarios_atencion?.[0];
+      const horarios = (tienda.horarios_atencion ?? []) as Array<{
+        dia_semana?: number;
+        hora_apertura?: string;
+        hora_cierre?: string;
+        esta_abierto?: boolean;
+      }>;
+      const primerHorario = horarios.find((h) => h.dia_semana !== 0) ?? horarios[0];
+      const horarioDomingo = horarios.find((h) => h.dia_semana === 0);
       let ap = '09:00';
       let ci = '20:00';
 
@@ -76,32 +83,37 @@ export default function TiendaConfiguracionPage() {
       reset({
         nombre_comercial: tienda.nombre_comercial ?? '',
         descripcion: tienda.descripcion ?? '',
-        direccion: (tienda.direcciones as { direccion?: string } | undefined)?.direccion ?? '',
-        telefono: '',
+        telefono: (tienda as { telefono?: string | null }).telefono ?? '',
         hora_apertura: ap,
         hora_cierre: ci,
+        atencion_domingo: Boolean(horarioDomingo?.esta_abierto),
       });
     }
   }, [tienda, reset]);
 
   const { mutate: guardarConfig, isPending } = useMutation({
     mutationFn: async (formData: TiendaConfigForm) => {
-      // 1. Actualizar perfil de la tienda (nombre, descripción)
+      // 1. Actualizar perfil de la tienda (nombre, descripción, teléfono)
       await proveedoresService.actualizarMiTienda({
         nombre_comercial: formData.nombre_comercial,
         descripcion: formData.descripcion,
-      });
+        ...(formData.telefono?.trim() ? { telefono: formData.telefono.trim() } : {}),
+      } as Parameters<typeof proveedoresService.actualizarMiTienda>[0]);
 
-      // 2. Configurar horarios comerciales lunes a sábado (días 1 al 6)
-      const diasSemana = [1, 2, 3, 4, 5, 6];
-      await proveedoresService.configurarHorarios(
-        diasSemana.map((dia) => ({
-          dia_semana: dia,
-          apertura: formData.hora_apertura,
-          cierre: formData.hora_cierre,
-          activo: true,
-        }))
-      );
+      // 2. Configurar horarios comerciales lunes a sábado y opción de domingo
+      const horarios = [1, 2, 3, 4, 5, 6].map((dia) => ({
+        dia_semana: dia,
+        apertura: formData.hora_apertura,
+        cierre: formData.hora_cierre,
+        activo: true,
+      }));
+      horarios.push({
+        dia_semana: 0,
+        apertura: formData.hora_apertura,
+        cierre: formData.hora_cierre,
+        activo: Boolean(formData.atencion_domingo),
+      });
+      await proveedoresService.configurarHorarios(horarios);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mi-tienda'] });
@@ -161,23 +173,18 @@ export default function TiendaConfiguracionPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="direccion">Dirección del Local / Depósito</Label>
-                <Input
-                  id="direccion"
-                  placeholder="Av. Santa Fe 3200"
-                  {...register('direccion')}
-                />
-              </div>
-
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="telefono">Teléfono de Contacto</Label>
                 <Input
                   id="telefono"
-                  placeholder="+54 11 4455-6677"
+                  placeholder="+593 99 123 4567"
                   {...register('telefono')}
                 />
+              </div>
+
+              <div className="flex items-center rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Las direcciones y puntos de retiro se configuran abajo en Sucursales y retiros.
               </div>
             </div>
           </CardContent>
@@ -194,7 +201,7 @@ export default function TiendaConfiguracionPage() {
               Definí el rango en el que tu tienda acepta y procesa salidas de reparto
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="hora_apertura">Hora de Inicio de Despacho *</Label>
@@ -220,6 +227,11 @@ export default function TiendaConfiguracionPage() {
                 )}
               </div>
             </div>
+
+            <label className="flex min-h-11 items-center gap-3 rounded-md border px-3">
+              <input type="checkbox" {...register('atencion_domingo')} />
+              <span className="text-sm font-medium">Atención los domingos</span>
+            </label>
           </CardContent>
         </Card>
 
@@ -230,6 +242,7 @@ export default function TiendaConfiguracionPage() {
           </Button>
         </div>
       </form>
+      <SucursalesManager />
     </div>
   );
 }

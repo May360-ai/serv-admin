@@ -31,12 +31,15 @@ export const authService = {
   },
 
   async registro(body: RegistroRequest): Promise<LoginResponse> {
+    const rolElegido = body.rol === 'cliente' ? 'cliente' : 'proveedor';
     const payload = {
       nombre: body.nombre,
       email: body.email,
       password: body.password,
-      rol_nombre: 'proveedor',
-      nombre_comercial: body.nombre_comercial || `${body.nombre} Tienda`,
+      rol_nombre: rolElegido,
+      ...(rolElegido === 'proveedor'
+        ? { nombre_comercial: body.nombre_comercial || `${body.nombre} Tienda` }
+        : {}),
     };
 
     const { data } = await apiClient.post<{ token?: string; usuario?: Usuario }>('/api/auth/registro', payload);

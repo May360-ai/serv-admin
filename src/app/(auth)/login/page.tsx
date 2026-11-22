@@ -123,7 +123,7 @@ export default function LoginPage() {
               <p className="text-sm text-muted-foreground">
                 ¿Primera vez?{' '}
                 <a href="/registro" className="text-primary hover:underline font-medium">
-                  Registrá tu tienda
+                  Crear cuenta
                 </a>
               </p>
             </div>

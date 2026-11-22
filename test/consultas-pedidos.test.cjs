@@ -102,13 +102,17 @@ test('Cierre 5.1: fechas del listado usan Guayaquil aunque el navegador esté en
   assert.ok(html.includes('13/11/2026'), 'La programación corresponde al día 13 en Guayaquil');
   assert.ok(!html.includes('14/11/2026'), 'No usar el día UTC para la programación');
 });
-for (const rol of ['cliente', 'proveedor', 'repartidor', 'admin']) {
+for (const rol of ['cliente', 'proveedor', 'repartidor', 'desconocido']) {
   test(`5.1 web: ${rol} no consulta global aunque se invoque queryFn directamente`, async t => {
     const app = setup(t, rol); const config = app.config({}); assert.equal(config.enabled, false);
     assert.throws(() => config.queryFn(), /requiere una sesión de administrador/);
     assert.deepEqual(app.requests, []); assert.match(app.html(), /requiere una sesión de administrador/);
   });
 }
+test('5.1 web: admin también está autorizado en consulta global', async t => {
+  const app = setup(t, 'admin');
+  assert.equal(app.config({}).enabled, true);
+});
 test('5.1 web: respuesta inválida, duplicados y metadatos incoherentes no se convierten en vacío', async t => {
   const app = setup(t); const service = app.load('services/pedidos-consultas.service.ts');
   for (const value of [[], {}, { success: false, data: [] }, envelope([{}]), envelope([], 1, 20, 1),
@@ -199,8 +203,9 @@ test('5.2 web: ID inválido no provoca GET y rol no autorizado no obtiene detall
     await assert.rejects(app.configDetail(id).queryFn(), /Identificador/);
     assert.match(app.detailHtml(id), /Identificador/);
   }
-  app.actor({ id: '1', rol: 'admin' }); assert.equal(app.configDetail('101').enabled, false);
+  app.actor({ id: '1', rol: 'desconocido' }); assert.equal(app.configDetail('101').enabled, false);
   await assert.rejects(app.configDetail('101').queryFn(), /sesión no permite/); assert.deepEqual(app.requests, []);
+  app.actor({ id: '1', rol: 'admin' }); assert.equal(app.configDetail('101').enabled, true);
 });
 test('5.2 web: sesión cliente distinta rechaza respuesta ajena incluso con HTTP 200', async t => {
   const app = setup(t, 'cliente'); app.actor({ id: 4, rol: 'cliente' }); app.response({ success: true, data: detail() });

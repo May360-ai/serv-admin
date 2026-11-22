@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatMoneda } from '@/lib/utils';
 import { ErrorConsulta } from '@/components/ui/error-consulta';
@@ -29,6 +30,7 @@ import { ResenasProducto } from '@/components/pedidos/valoraciones';
 export default function CatalogoClientePage() {
   const [busqueda, setBusqueda] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<number | null>(null);
+  const [variacionesElegidas, setVariacionesElegidas] = useState<Record<number, number>>({});
 
   const consultaItems = useQuery<ItemCatalogo[]>({
     queryKey: ['catalogo-items', categoriaSeleccionada],
@@ -46,7 +48,7 @@ export default function CatalogoClientePage() {
   const { data: items = [], isLoading: cargandoItems } = consultaItems;
   const { data: categorias = [] } = consultaCategorias;
 
-  const { items: cartItems, agregarItem, obtenerTotalItems, obtenerTotal } = useCarritoStore();
+  const { items: cartItems, proveedor_id: carritoProveedorId, agregarItem, obtenerTotalItems, obtenerTotal } = useCarritoStore();
 
   const totalItemsEnCarrito = obtenerTotalItems();
   const totalCarrito = obtenerTotal();
@@ -59,15 +61,26 @@ export default function CatalogoClientePage() {
 
   const paginado = usePaginacion(itemsFiltrados, `${busqueda}:${categoriaSeleccionada}`, 12);
   const handleAgregar = (item: ItemCatalogo) => {
-    const precioNumerico = Number(item.precio);
+    if (carritoProveedorId != null && carritoProveedorId !== item.proveedor_id && cartItems.length > 0 &&
+        typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (!window.confirm('Tu carrito tiene productos de otra tienda. ¿Deseas reemplazarlo por este producto?')) return;
+    }
+    const varId = item.variaciones_item?.length
+      ? (variacionesElegidas[item.id] ?? item.variaciones_item[0].id)
+      : undefined;
+    const variacion = item.variaciones_item?.find(v => v.id === varId);
+    const precioNumerico = Number(item.precio) + Number(variacion?.precio_adicional ?? 0);
+    const stockItem = variacion?.stock ?? item.inventario_stock;
     agregarItem(
       {
         item_id: item.id,
-        nombre: item.nombre,
+        variacion_item_id: variacion?.id,
+        variacion_nombre: variacion?.nombre_variacion,
+        nombre: variacion ? `${item.nombre} (${variacion.nombre_variacion})` : item.nombre,
         precio: precioNumerico,
         proveedor_id: item.proveedor_id,
         nombre_tienda: item.proveedores?.nombre_comercial || 'Tienda SERV',
-        inventario_stock: item.inventario_stock,
+        inventario_stock: stockItem,
         imagen_url: item.imagen_url,
       },
       1
@@ -165,9 +178,14 @@ export default function CatalogoClientePage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {paginado.datos.map((item) => {
-            const enCarrito = cartItems.find((c) => c.item_id === item.id);
-            const stock = item.inventario_stock ?? 0;
-            const sinStock = !item.es_servicio && stock <= 0;
+            const varId = item.variaciones_item?.length
+              ? (variacionesElegidas[item.id] ?? item.variaciones_item[0].id)
+              : undefined;
+            const variacionActual = item.variaciones_item?.find(v => v.id === varId);
+            const enCarrito = cartItems.find((c) => c.item_id === item.id && (c.variacion_item_id ?? undefined) === varId);
+            const stock = variacionActual?.stock ?? item.inventario_stock;
+            const sinStock = !item.es_servicio && stock != null && stock <= 0;
+            const precioMostrado = Number(item.precio) + Number(variacionActual?.precio_adicional ?? 0);
 
             return (
               <Card
@@ -205,15 +223,29 @@ export default function CatalogoClientePage() {
                   </div>
 
                   {/* Tags */}
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     {item.es_servicio ? (
                       <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
                         Servicio
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-700 border-slate-200">
-                        Stock: {stock}
+                        {stock == null ? 'Disponible' : `Stock: ${stock}`}
                       </Badge>
+                    )}
+                    {item.variaciones_item && item.variaciones_item.length > 0 && (
+                      <Select
+                        aria-label={`Variación de ${item.nombre}`}
+                        value={String(varId ?? '')}
+                        onChange={(e) => setVariacionesElegidas(prev => ({ ...prev, [item.id]: Number(e.target.value) }))}
+                        className="h-8 text-xs"
+                      >
+                        {item.variaciones_item.map(v => (
+                          <option key={v.id} value={v.id}>
+                            {v.nombre_variacion}{Number(v.precio_adicional) ? ` (+${formatMoneda(Number(v.precio_adicional))})` : ''}
+                          </option>
+                        ))}
+                      </Select>
                     )}
                   </div>
                 </div>
@@ -225,7 +257,7 @@ export default function CatalogoClientePage() {
                       Precio
                     </span>
                     <span className="text-lg font-bold text-foreground">
-                      {formatMoneda(Number(item.precio))}
+                      {formatMoneda(precioMostrado)}
                     </span>
                   </div>
 

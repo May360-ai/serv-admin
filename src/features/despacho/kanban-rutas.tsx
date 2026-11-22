@@ -27,6 +27,7 @@ interface PedidoItemRutaProps {
   index: number;
   total: number;
   rutaId: string;
+  rutaActual: Ruta;
   todasLasRutas: Ruta[];
   onMoverArriba: (pedidoId: string) => void;
   onMoverAbajo: (pedidoId: string) => void;
@@ -37,6 +38,7 @@ function PedidoItemRuta({
   index,
   total,
   rutaId,
+  rutaActual,
   todasLasRutas,
   onMoverArriba,
   onMoverAbajo,
@@ -47,7 +49,15 @@ function PedidoItemRuta({
 
   const rutasDestino = todasLasRutas.filter(
     (r) =>
-      r.id !== rutaId &&
+      r.id !== rutaActual.id &&
+      r.estado === 'armando' &&
+      r.repartidor?.estado !== 'inactivo' &&
+      String(r.zona_id) === String(rutaActual.zona_id) &&
+      String(r.proveedor_id) === String(rutaActual.proveedor_id) &&
+      (rutaActual.sucursal?.id == null ||
+        r.sucursal?.id == null ||
+        String(r.sucursal.id) === String(rutaActual.sucursal.id)) &&
+      r.fecha_entrega === rutaActual.fecha_entrega &&
       r.pedidos.length < r.capacidad_maxima
   );
 
@@ -87,6 +97,7 @@ function PedidoItemRuta({
         </div>
 
         {/* Controles */}
+        {rutaActual.estado === 'armando' && (
         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onMoverArriba(pedido.id)}
@@ -120,10 +131,11 @@ function PedidoItemRuta({
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
+        )}
       </div>
 
       {/* Dropdown de transferencia */}
-      {showTransfer && (
+      {rutaActual.estado === 'armando' && showTransfer && (
         <div className="mt-2 pt-2 border-t border-border">
           <p className="text-xs text-muted-foreground mb-1.5">Transferir a ruta:</p>
           {rutasDestino.length === 0 ? (
@@ -254,6 +266,8 @@ function CardRepartidor({ ruta, todasLasRutas, onReordenar, onAjustar }: CardRep
           </div>
         </div>
 
+        {ruta.sucursal && <p className="mt-2 text-xs text-muted-foreground">Retiro: {ruta.sucursal.nombre} · {ruta.sucursal.direccion}</p>}
+
         {/* Capacidad */}
         <div className="mt-3">
           <div className="flex items-center justify-between text-xs mb-1.5">
@@ -292,6 +306,7 @@ function CardRepartidor({ ruta, todasLasRutas, onReordenar, onAjustar }: CardRep
                 index={index}
                 total={ruta.pedidos.length}
                 rutaId={ruta.id}
+                rutaActual={ruta}
                 todasLasRutas={todasLasRutas}
                 onMoverArriba={handleMoverArriba}
                 onMoverAbajo={handleMoverAbajo}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,14 +25,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
 import { formatMoneda } from '@/lib/utils';
 import { PuntoEntrega, type PuntoEntrega as Punto } from '@/components/pedidos/punto-entrega';
+import { zonasService } from '@/services/zonas.service';
+import { pagosService, type MetodoPago } from '@/services/pagos.service';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const usuario = useAuthStore(s => s.usuario);
   const registrar = useMemo(() => crearRegistroPedido(usuario?.id), [usuario?.id]);
+  const zonas = useQuery({ queryKey: ['zonas'], queryFn: zonasService.listarZonas });
   const {
     items,
     proveedor_id,
@@ -52,6 +56,7 @@ export default function CheckoutPage() {
   const [horaEntrega, setHoraEntrega] = useState('12:00');
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [instrucciones, setInstrucciones] = useState('');
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [enviando, setEnviando] = useState(false);
 
   const subtotal = obtenerSubtotal();
@@ -83,8 +88,17 @@ export default function CheckoutPage() {
           referencia: referencia.trim() || undefined, ciudad, ...punto },
         fecha_entrega: fechaEntrega, hora_entrega: horaEntrega,
         instrucciones_especiales: instrucciones.trim() || undefined,
-        items_comprados: items.map(i => ({ item_id: Number(i.item_id), cantidad: i.cantidad })),
+        items_comprados: items.map(i => ({
+          item_id: Number(i.item_id),
+          cantidad: i.cantidad,
+          ...(i.variacion_item_id ? { variacion_item_id: i.variacion_item_id } : {}),
+        })),
       }, usuario, catalogo);
+      try {
+        await pagosService.registrarPago({ pedido_id: Number(pedido.id), metodo_pago: metodoPago });
+      } catch {
+        toast.warning('El pedido se registró, pero el método de pago quedó pendiente de confirmación.');
+      }
 
       void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       void queryClient.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
@@ -167,7 +181,7 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent className="divide-y divide-border">
               {items.map((item) => (
-                <div key={item.item_id} className="py-3 flex items-center justify-between gap-4">
+                <div key={`${item.item_id}-${item.variacion_item_id ?? 'base'}`} className="py-3 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-foreground truncate">{item.nombre}</p>
                     <p className="text-xs text-muted-foreground">
@@ -179,7 +193,7 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => actualizarCantidad(item.item_id, item.cantidad - 1)}
+                      onClick={() => actualizarCantidad(item.item_id, item.cantidad - 1, item.variacion_item_id)}
                       className="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground"
                     >
                       <Minus className="h-3 w-3" />
@@ -187,7 +201,7 @@ export default function CheckoutPage() {
                     <span className="text-sm font-bold w-6 text-center">{item.cantidad}</span>
                     <button
                       type="button"
-                      onClick={() => actualizarCantidad(item.item_id, item.cantidad + 1)}
+                      onClick={() => actualizarCantidad(item.item_id, item.cantidad + 1, item.variacion_item_id)}
                       className="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground"
                     >
                       <Plus className="h-3 w-3" />
@@ -204,7 +218,7 @@ export default function CheckoutPage() {
                   {/* Botón eliminar */}
                   <button
                     type="button"
-                    onClick={() => removerItem(item.item_id)}
+                    onClick={() => removerItem(item.item_id, item.variacion_item_id)}
                     className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -226,7 +240,7 @@ export default function CheckoutPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <PuntoEntrega value={punto} onChange={setPunto} />
+              <PuntoEntrega value={punto} onChange={setPunto} zonas={zonas.data ?? []} />
               <div className="space-y-1.5">
                 <Label htmlFor="calle">Dirección de Entrega (Calle y Número) *</Label>
                 <Input
@@ -320,6 +334,16 @@ export default function CheckoutPage() {
                   <span>Total</span>
                   <span className="text-primary text-xl">{formatMoneda(total)}</span>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="metodo-pago">Método de pago</Label>
+                <Select id="metodo-pago" value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPago)}>
+                  <option value="efectivo">Efectivo contraentrega</option>
+                  <option value="transferencia_bancaria">Transferencia bancaria</option>
+                  <option value="tarjeta_credito">Tarjeta de crédito</option>
+                  <option value="billetera_movil">Billetera móvil</option>
+                </Select>
               </div>
 
               <div className="p-3 bg-muted/30 rounded-lg border border-border text-xs text-muted-foreground space-y-1">

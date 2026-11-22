@@ -26,9 +26,14 @@ export function repartidoresElegibles(
 
 // Refleja obtener() y asignarPedido() del backend. El servidor vuelve a validar al guardar.
 export function esRutaCompatible(pedido: Pedido, ruta: Ruta): boolean {
-  return !pedido.ruta_id && ['pendiente', 'aceptado'].includes(pedido.estado) &&
+  const sucursalCompatible =
+    !pedido.sucursal_id ||
+    !ruta.sucursal?.id ||
+    String(pedido.sucursal_id) === String(ruta.sucursal.id);
+  return !pedido.ruta_id && ['pendiente', 'aceptado', 'agendado', 'en_progreso'].includes(pedido.estado) &&
     ruta.estado === 'armando' && ruta.repartidor?.estado !== 'inactivo' && Boolean(pedido.zona_id && pedido.tienda_id && pedido.fecha_entrega) &&
     ruta.proveedor_id != null && String(ruta.proveedor_id) === String(pedido.tienda_id) &&
+    sucursalCompatible &&
     String(ruta.zona_id) === String(pedido.zona_id) && ruta.fecha_entrega === pedido.fecha_entrega &&
     Number.isInteger(ruta.capacidad_maxima) && ruta.capacidad_maxima > 0 &&
     ruta.pedidos.length < ruta.capacidad_maxima;

@@ -33,6 +33,7 @@ export interface Zona {
   pedidos_count?: number;
   activa: boolean;
   created_at: string;
+  poligono?: { type: 'Polygon'; coordinates: number[][][] } | null;
 }
 
 export interface DireccionEntrega {
@@ -69,12 +70,14 @@ export interface Pedido {
   zona_id: string;
   zona?: Zona;
   tienda_id: string;
+  sucursal_id?: string;
   ruta_id?: string;
   ruta?: Ruta;
   orden_en_ruta?: number; // Parada 1, 2, 3...
   notas?: string;
   monto_total: number;
   pago_confirmado: boolean;
+  metodo_pago?: string;
   ultimo_minuto: boolean; // Flag para pedidos de último momento
   created_at: string;
   updated_at: string;
@@ -96,6 +99,7 @@ export interface Ruta {
   fecha_entrega: string;
   zona_id: string;
   zona?: Zona;
+  sucursal?: { id: string; nombre: string; direccion: string; latitud: number; longitud: number } | null;
   repartidor_id?: string;
   repartidor?: Repartidor;
   pedidos: Pedido[];
@@ -266,6 +270,7 @@ export interface MetricasDashboard {
 export interface SocketEventMap {
   connect: undefined;
   despacho_actualizado: undefined;
+  disponibilidad_repartidores_actualizada: undefined;
   ubicacion_ruta_actualizada: { ruta_id: string };
   mensaje_recibido: MensajeChat;
   nuevo_mensaje: unknown;

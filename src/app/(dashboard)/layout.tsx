@@ -49,11 +49,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     const handleEstadoUpdate = (data: { pedido_id: string; estado: EstadoPedido }) => {
       toast.info(`Actualización: Pedido #${data.pedido_id.slice(-6)} está ${data.estado}`);
+      void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
+      void queryClient.invalidateQueries({ queryKey: ['mis-pedidos-cliente'] });
     };
 
     const actualizarDespacho = () => {
       void queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       void queryClient.invalidateQueries({ queryKey: ['rutas'] });
+      void queryClient.invalidateQueries({ queryKey: ['atrasadas'] });
+      void queryClient.invalidateQueries({ queryKey: ['mis-entregas'] });
+    };
+    const actualizarFlota = () => {
+      void queryClient.invalidateQueries({ queryKey: ['flota'] });
+      void queryClient.invalidateQueries({ queryKey: ['repartidores-despacho'] });
     };
     const actualizarUbicacion = ({ ruta_id }: { ruta_id: string }) => {
       void queryClient.invalidateQueries({ queryKey: ['ubicacion-ruta', usuario.id, usuario.proveedor_id, ruta_id] });
@@ -61,6 +69,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     on('pedido_registrado', actualizarDespacho);
     on('ruta_actualizada', actualizarDespacho);
     on('despacho_actualizado', actualizarDespacho);
+    on('disponibilidad_repartidores_actualizada', actualizarFlota);
     on('ubicacion_ruta_actualizada', actualizarUbicacion);
     on('connect', actualizarDespacho);
     on('estado_pedido_actualizado', handleEstadoUpdate);
@@ -68,6 +77,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       off('pedido_registrado', actualizarDespacho);
       off('ruta_actualizada', actualizarDespacho);
       off('despacho_actualizado', actualizarDespacho);
+      off('disponibilidad_repartidores_actualizada', actualizarFlota);
       off('ubicacion_ruta_actualizada', actualizarUbicacion);
       off('connect', actualizarDespacho);
       off('estado_pedido_actualizado', handleEstadoUpdate);

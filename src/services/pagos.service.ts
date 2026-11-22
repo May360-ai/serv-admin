@@ -1,7 +1,18 @@
 import { apiClient } from '@/lib/api-client';
 import type { Pago } from '@/types';
 
+export type MetodoPago = 'efectivo' | 'transferencia_bancaria' | 'tarjeta_credito' | 'billetera_movil';
+
 export const pagosService = {
+  /**
+   * Registra el método de pago de un pedido recién creado (cliente).
+   */
+  async registrarPago(body: { pedido_id: number; metodo_pago: MetodoPago; transaccion_externa_id?: string }): Promise<Pago> {
+    const { data } = await apiClient.post<unknown>('/api/pagos', body);
+    const obj = (data as { data?: unknown; pago?: unknown })?.data ?? (data as { pago?: unknown })?.pago ?? data;
+    return obj as Pago;
+  },
+
   /**
    * Confirma el pago de un pedido recibido (mostrador o contraentrega).
    */

@@ -10,6 +10,7 @@ const idSchema = z.number().int().positive();
 const fechaSchema = z.string().refine(value => Number.isFinite(+new Date(value)), 'Fecha de API inválida');
 const pedidoSchema = z.object({
   id: idSchema, proveedor_id: idSchema, cliente_id: idSchema.optional(),
+  sucursal_id: idSchema.nullable().optional(),
   codigo_seguimiento: z.string().nullable().optional(), ruta_id: z.string().nullable().optional(),
   total: z.union([z.number(), z.string()]).refine(value => Number.isFinite(Number(value))),
   fecha_creacion: fechaSchema, fecha_programada: fechaSchema.nullable().optional(),
@@ -20,7 +21,9 @@ const pedidoSchema = z.object({
     referencia: z.string().nullable().optional(),
     latitud: z.union([z.string(), z.number()]).nullable().optional(),
     longitud: z.union([z.string(), z.number()]).nullable().optional(),
+    zona: z.object({ id: idSchema, nombre: z.string() }).nullable().optional(),
   }).nullable().optional(),
+  pagos: z.object({ metodo_pago: z.string(), estado: z.string().nullable().optional() }).nullable().optional(),
 });
 
 function normalizarPedido(value: unknown): Pedido {
@@ -44,8 +47,13 @@ function normalizarPedido(value: unknown): Pedido {
       latitud: dir?.latitud != null ? Number(dir.latitud) : undefined,
       longitud: dir?.longitud != null ? Number(dir.longitud) : undefined,
     },
-    zona_id: dir?.zona_id ? String(dir.zona_id) : '', tienda_id: String(p.proveedor_id),
-    notas: p.instrucciones_especiales ?? '', monto_total: Number(p.total), pago_confirmado: false,
+    zona_id: dir?.zona_id ? String(dir.zona_id) : '',
+    zona: dir?.zona ? { id: String(dir.zona.id), nombre: dir.zona.nombre, color: '#3B82F6', capacidad_maxima: 4, activa: true, created_at: '' } : undefined,
+    tienda_id: String(p.proveedor_id),
+    sucursal_id: p.sucursal_id ? String(p.sucursal_id) : undefined,
+    notas: p.instrucciones_especiales ?? '', monto_total: Number(p.total),
+    pago_confirmado: p.pagos?.estado === 'completado',
+    metodo_pago: p.pagos?.metodo_pago as Pedido['metodo_pago'] | undefined,
     ultimo_minuto: Boolean(fecha && dia.format(new Date(p.fecha_creacion)) === fecha),
     created_at: p.fecha_creacion, updated_at: p.fecha_creacion,
   };

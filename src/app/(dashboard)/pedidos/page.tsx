@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { EstadoPedido } from '@/types';
+import { esAdministrador } from '@/types/auth';
 import { useAuthStore } from '@/store/auth.store';
 import { ContratoPedidosError } from '@/services/pedidos-contrato';
 import { ErrorHttp } from '@/lib/error-http';
@@ -34,14 +35,15 @@ export default function PedidosPage() {
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPedido | ''>('');
   const [fechaFiltro, setFechaFiltro] = useState('');
 
+  const admin = esAdministrador(usuario?.rol);
   const { data, isLoading, isError, error, refetch } = useTodosPedidos({
     busqueda: busqueda || undefined,
     estado: estadoFiltro || undefined,
     fecha: fechaFiltro || undefined,
-  }, usuario?.rol !== 'administrador');
+  }, !admin);
 
   const pedidos = data?.data ?? [];
-  if (usuario?.rol === 'administrador') return <PedidosAdministracion key={String(usuario.id)} />;
+  if (admin) return <PedidosAdministracion key={String(usuario?.id)} />;
 
   return (
     <div className="space-y-6">

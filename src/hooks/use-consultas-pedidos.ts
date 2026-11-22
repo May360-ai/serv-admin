@@ -5,15 +5,17 @@ import { useAuthStore } from '@/store/auth.store';
 import { consultarPedidosAdministracion, consultarDetallePedido, idPedidoValido, type FiltrosAdministracion } from '@/services/pedidos-consultas.service';
 import { ContratoPedidosError } from '@/services/pedidos-contrato';
 import { ErrorHttp } from '@/lib/error-http';
+import { esAdministrador } from '@/types/auth';
 import { sincronizacionPedidos } from './pedidos-sincronizacion';
 
 export function usePedidosAdministracion(filtros: FiltrosAdministracion) {
   const usuario = useAuthStore(s => s.usuario);
+  const admin = esAdministrador(usuario?.rol);
   return useQuery({
     queryKey: ['pedidos', 'administracion', usuario?.id, usuario?.rol, filtros],
-    enabled: Boolean(usuario?.id) && usuario?.rol === 'administrador',
+    enabled: Boolean(usuario?.id) && admin,
     queryFn: ({ signal }: { signal?: AbortSignal } = {}) => {
-      if (!usuario?.id || usuario.rol !== 'administrador') throw new ContratoPedidosError('La consulta global requiere una sesión de administrador.');
+      if (!usuario?.id || !admin) throw new ContratoPedidosError('La consulta global requiere una sesión de administrador.');
       return consultarPedidosAdministracion(filtros, signal);
     },
     gcTime: 0, staleTime: 30_000,
@@ -23,7 +25,7 @@ export function usePedidosAdministracion(filtros: FiltrosAdministracion) {
 
 export function useDetallePedido(pedidoId: string) {
   const usuario = useAuthStore(s => s.usuario);
-  const autorizado = usuario && ['administrador', 'cliente', 'proveedor', 'repartidor'].includes(usuario.rol);
+  const autorizado = usuario && (esAdministrador(usuario.rol) || ['cliente', 'proveedor', 'repartidor'].includes(usuario.rol));
   return useQuery({
     queryKey: ['pedidos', 'detalle', usuario?.id, usuario?.rol, pedidoId],
     enabled: Boolean(usuario?.id && autorizado && idPedidoValido(pedidoId)),

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CircleMarker, Map as LeafletMap } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -42,7 +41,7 @@ function EditorPunto({ ruta, pedido, centro, cerrar }: { ruta: Ruta; pedido: Ped
     if (!nodo) return;
     let mapa: LeafletMap | undefined;
     let desmontado = false;
-    void import('leaflet').then(L => {
+    void Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => {
       if (desmontado) return;
       const datos = inicio.current;
       mapa = L.map(nodo).setView([datos.centro.latitud, datos.centro.longitud], 15);

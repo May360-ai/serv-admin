@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import type { CircleMarker, Map as LeafletMap } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { apiClient } from '@/lib/api-client';
 import { Select } from '@/components/ui/select';
 import { useAuthStore } from '@/store/auth.store';
@@ -26,7 +25,7 @@ function Mapa({ latitud, longitud }: { latitud: number; longitud: number }) {
     if (!nodo) return;
     let mapa: LeafletMap | undefined;
     let desmontado = false;
-    void import('leaflet').then(L => {
+    void Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => {
       if (desmontado) return;
       mapa = L.map(nodo, { scrollWheelZoom: false });
       L.tileLayer(process.env.NEXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {

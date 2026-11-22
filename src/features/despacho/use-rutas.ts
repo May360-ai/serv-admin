@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { rutasService } from '@/features/despacho/rutas.service';
 import { useAuthStore } from '@/store/auth.store';
+import { esAdministrador } from '@/types/auth';
 import { mensajeErrorDespacho } from './elegibilidad';
 import type {
   FiltrosRutas,
@@ -17,7 +18,7 @@ export const REPARTIDORES_QUERY_KEY = 'repartidores-despacho' as const;
 
 export function useDisponibilidadRepartidores(fecha: string, enabled: boolean) {
   const usuario = useAuthStore(s => s.usuario);
-  const alcanceGlobal = usuario?.rol === 'administrador';
+  const alcanceGlobal = esAdministrador(usuario?.rol);
   const puedeConsultar = alcanceGlobal || (usuario?.rol === 'proveedor' && usuario.proveedor_id != null);
   const consulta = useQuery({
     queryKey: [REPARTIDORES_QUERY_KEY, usuario?.id, usuario?.rol, usuario?.proveedor_id, fecha],
@@ -72,6 +73,7 @@ export function useArmarRutas() {
     mutationFn: (body: ArmarRutasRequest) => rutasService.armarRutas(body),
     onSuccess: (resultado) => {
       queryClient.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       toast.success(
         `Armado completado: ${resultado.rutas_creadas} rutas, ${resultado.pedidos_asignados} pedidos asignados`
       );
@@ -125,6 +127,7 @@ export function useRemoverPedidoDeRuta() {
       rutasService.removerPedidoDeRuta(ruta_id, pedido_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [RUTAS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       toast.success('Pedido removido de la ruta');
     },
     onError: (error: Error) => {

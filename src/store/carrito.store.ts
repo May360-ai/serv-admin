@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   item_id: number;
+  variacion_item_id?: number;
+  variacion_nombre?: string;
   nombre: string;
   precio: number;
   cantidad: number;
@@ -12,13 +14,17 @@ export interface CartItem {
   imagen_url?: string | null;
 }
 
+function mismaLinea(a: CartItem, item_id: number, variacion_item_id?: number) {
+  return a.item_id === item_id && (a.variacion_item_id ?? null) === (variacion_item_id ?? null);
+}
+
 interface CarritoState {
   items: CartItem[];
   proveedor_id: number | null;
   nombre_tienda: string | null;
   agregarItem: (item: Omit<CartItem, 'cantidad'>, cantidad?: number) => void;
-  removerItem: (item_id: number) => void;
-  actualizarCantidad: (item_id: number, cantidad: number) => void;
+  removerItem: (item_id: number, variacion_item_id?: number) => void;
+  actualizarCantidad: (item_id: number, cantidad: number, variacion_item_id?: number) => void;
   vaciarCarrito: () => void;
   obtenerTotalItems: () => number;
   obtenerSubtotal: () => number;
@@ -36,9 +42,8 @@ export const useCarritoStore = create<CarritoState>()(
       agregarItem: (nuevoItem, cantidad = 1) => {
         const { items, proveedor_id } = get();
 
-        // Si el carrito tiene productos de otra tienda, advertir o resetear
+        // Si el carrito tiene productos de otra tienda, reemplaza por la nueva tienda
         if (proveedor_id !== null && proveedor_id !== nuevoItem.proveedor_id && items.length > 0) {
-          // Reemplaza por la nueva tienda
           set({
             items: [{ ...nuevoItem, cantidad }],
             proveedor_id: nuevoItem.proveedor_id,
@@ -47,7 +52,7 @@ export const useCarritoStore = create<CarritoState>()(
           return;
         }
 
-        const indexExistente = items.findIndex((i) => i.item_id === nuevoItem.item_id);
+        const indexExistente = items.findIndex((i) => mismaLinea(i, nuevoItem.item_id, nuevoItem.variacion_item_id));
 
         if (indexExistente >= 0) {
           const actual = items[indexExistente];
@@ -66,8 +71,8 @@ export const useCarritoStore = create<CarritoState>()(
         }
       },
 
-      removerItem: (item_id) => {
-        const nuevosItems = get().items.filter((i) => i.item_id !== item_id);
+      removerItem: (item_id, variacion_item_id) => {
+        const nuevosItems = get().items.filter((i) => !mismaLinea(i, item_id, variacion_item_id));
         set({
           items: nuevosItems,
           proveedor_id: nuevosItems.length === 0 ? null : get().proveedor_id,
@@ -75,13 +80,13 @@ export const useCarritoStore = create<CarritoState>()(
         });
       },
 
-      actualizarCantidad: (item_id, cantidad) => {
+      actualizarCantidad: (item_id, cantidad, variacion_item_id) => {
         if (cantidad <= 0) {
-          get().removerItem(item_id);
+          get().removerItem(item_id, variacion_item_id);
           return;
         }
         const nuevosItems = get().items.map((i) => {
-          if (i.item_id === item_id) {
+          if (mismaLinea(i, item_id, variacion_item_id)) {
             const stockMax = i.inventario_stock ?? 999;
             return { ...i, cantidad: Math.min(cantidad, stockMax) };
           }

@@ -1,12 +1,12 @@
 # Contexto de SERV para el equipo y sus agentes
 
-Revisado el 21 de noviembre de 2026 contra el código de los tres repositorios. Esta es una foto del sistema, no una lista de tareas pendientes. Confirma el comportamiento en el código y actualiza esta guía cuando cambie una regla compartida.
+Revisado el 22 de noviembre de 2026 contra el código de los tres repositorios. Esta es una foto del sistema, no una lista de tareas pendientes. Confirma el comportamiento en el código y actualiza esta guía cuando cambie una regla compartida.
 
 ## Qué construimos
 
 SERV gestiona pedidos y su entrega: el cliente hace un pedido, la tienda lo prepara y organiza el despacho por fecha y zona, y el repartidor avanza las paradas desde Android. La tienda consulta estados y seguimiento. El proyecto incluye administración de tiendas, zonas y repartidores, chat de pedido, pagos, reprogramaciones e intentos fallidos.
 
-Roles: cliente, proveedor (tienda), repartidor y administración (admin / administrador). Todos los endpoints HTTP autenticados y la conexión Socket.IO comprueban que la cuenta siga con estado activo; ocultar un botón no protege una operación.
+Roles: cliente, proveedor (tienda), repartidor y administración (admin / administrador). La web atiende a cliente, tienda y administración; el repartidor trabaja solo desde Android y la web cierra su sesión. Todos los endpoints HTTP autenticados y la conexión Socket.IO comprueban que la cuenta siga con estado activo; ocultar un botón no protege una operación.
 
 ## Repositorios
 
@@ -21,11 +21,11 @@ Son repositorios Git independientes; no asumas un monorepo ni rutas absolutas de
 ## Flujo y reglas que deben conservarse
 
 1. Fecha de registro y fecha/hora programada son conceptos distintos. El día operativo usa America/Guayaquil.
-2. El armado agrupa por fecha, zona, tienda y sucursal. La sucursal se elige entre las habilitadas que cubren la zona, por distancia en línea recta al destino. Para hoy o fechas pasadas, el repartidor se elige por distancia en línea recta a la sucursal con GPS activo y actualizado en los últimos 45 segundos y sin ruta asignada ese día; para fechas futuras (> hoy en America/Guayaquil), entre repartidores activos sin ruta asignada en esa fecha. Si no hay candidatos, el pedido queda pendiente; no se usan posiciones antiguas en despachos del día.
+2. Solo se despachan pedidos aceptados por la tienda (aceptado, agendado o en_progreso); un pedido pendiente espera su aceptación. Al aceptar un pedido del día se intenta despacharlo de inmediato, y cuando un repartidor pasa a disponible se reintentan los pedidos del día sin ruta. El armado agrupa por fecha, zona, tienda y sucursal. La sucursal se elige entre las habilitadas que cubren la zona, por distancia en línea recta al destino; los pedidos antiguos sin sucursal la reciben al armar y, si ninguna cubre su zona, se informan como sin sucursal. Un repartidor puede hacer varias salidas el mismo día, pero solo tiene una ruta abierta a la vez (una en armado por fecha y ninguna otra en_ruta al iniciar). Para hoy o fechas pasadas, el repartidor se elige por distancia en línea recta a la sucursal con GPS activo y actualizado en los últimos 45 segundos, sin ruta en armado ese día ni salida en curso; para fechas futuras (> hoy en America/Guayaquil), entre repartidores activos sin ruta abierta en esa fecha. Si no hay candidatos, el pedido queda sin ruta y el armado lo informa; no se usan posiciones antiguas en despachos del día.
 3. Un pedido no debe duplicarse en rutas. Las mutaciones de despacho usan transacciones y un bloqueo compartido de PostgreSQL. Preservar esa protección ante solicitudes simultáneas.
-4. Las rutas usan estados armando, en_ruta y cerrada. Los pedidos en estado pendiente, aceptado, agendado o en_progreso son asignables a rutas en armando. Las entregas avanzan de forma secuencial; el backend valida la transición y el repartidor asignado. Al cancelar un pedido desde cliente o tienda (bloqueado si ya está en_camino), se restaura el stock de las variaciones, se desvincula/reordena la ruta y se notifica por Socket.IO.
+4. Las rutas usan estados armando, en_ruta, completada (todas entregadas) y cerrada (con fallos o sin pedidos). Las entregas avanzan de forma secuencial; el backend valida la transición y el repartidor asignado. La tienda (o administración) acepta, agenda, pone en progreso o rechaza/cancela; el cliente solo cancela mientras el pedido sigue pendiente. Al cancelar (bloqueado si ya está en_camino) se restaura el stock, se desvincula/reordena la ruta y se notifica por Socket.IO.
 5. Un intento fallido conserva el motivo y permite seguir con la próxima parada. Reprogramar conserva historial y exige fecha/hora futuras, repartidor y motivo.
-6. La tienda solo opera sobre su propio alcance; el stock de variaciones se valida y descuenta atómicamente al crear el pedido. Un repartidor solo modifica sus rutas. Las cuentas inactivas pierden acceso a HTTP y Socket.IO. Los pagos pueden registrarse en checkout (`POST /api/pagos`) o confirmarse por la tienda (`PATCH /api/pagos/:pedido_id/confirmar`).
+6. La tienda solo opera sobre su propio alcance. El stock se descuenta atómicamente al crear el pedido: de la variación si lleva stock propio, si no del producto. Un repartidor solo modifica sus rutas. Las cuentas inactivas pierden acceso a HTTP y Socket.IO. Cada pedido exige fecha y hora futuras dentro del horario de atención configurado por la tienda (sin horarios no se restringe) y registra su pago pendiente en la misma transacción (efectivo, transferencia o billetera; no hay pasarela de tarjetas). Solo la tienda confirma el cobro (`PATCH /api/pagos/:pedido_id/confirmar`). El costo de envío es el de la zona del destino (zonas.costo_envio).
 7. Persistir antes de notificar. Socket.IO autentica con JWT y limita eventos por destinatario/tienda; al recuperar conexión hay que consultar de nuevo el estado.
 8. El chat se limita a participantes reales del pedido y al interlocutor seleccionado. Nunca emitir conversaciones a todos los usuarios.
 
@@ -44,6 +44,14 @@ Son repositorios Git independientes; no asumas un monorepo ni rutas absolutas de
 - Los tiempos son estimaciones de conducción sin tráfico en vivo, atención ni espera. No presentar esto como navegación giro a giro o garantía de puntualidad.
 - El OSRM público predeterminado es para pruebas académicas no comerciales, con consultas separadas en esta instancia. Para otros despliegues configurar OSRM_BASE_URL y revisar las condiciones del proveedor. Mantener atribución de OpenStreetMap.
 - No hay una cola offline de entregas confirmada. No prometer que una acción quedó guardada sin respuesta del servidor.
+
+## Publicación y administración (22 de noviembre de 2026)
+
+- Una tienda nueva queda pendiente de aprobación (proveedores.es_verificado). El catálogo y el listado público solo muestran tiendas aprobadas, con cuenta activa y al menos una sucursal activa; la web avisa a la tienda qué le falta.
+- Administración aprueba o retira la aprobación (`PATCH /api/proveedores/:id/aprobacion`), suspende tiendas (`PATCH /api/proveedores/:id/estado`) y clientes (`/api/clientes`), edita repartidores (`PATCH /api/repartidores/:id`) y puede cambiar el estado de pedidos con las mismas transiciones que la tienda.
+- La tienda edita nombre, descripción, precio y disponibilidad de sus productos (`PATCH /api/items/:id`), el stock de cada variación con comparación atómica y auditoría, y consulta su catálogo completo en `GET /api/items/mi-tienda`.
+- El cliente reutiliza direcciones confirmadas (`GET /api/datos/direcciones`); registrar una dirección idéntica devuelve la existente.
+- Migración aditiva `prisma/sql/flujos-roles.sql`: quita la unicidad fecha+repartidor de rutas (deja un índice parcial para una ruta en armado por fecha), agrega zonas.costo_envio y marca como aprobadas las tiendas existentes.
 
 ## Dónde comprobar contratos
 

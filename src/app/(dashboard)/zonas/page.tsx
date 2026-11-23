@@ -31,7 +31,7 @@ const zonaSchema = z.object({
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color hexadecimal inválido'),
   capacidad_maxima: z.number({ error: 'Capacidad requerida' }).int().min(1).max(20),
   costo_envio: z.number({ error: 'Costo de envío requerido' }).min(0).max(100)
-    .refine(v => Math.round(v * 100) === v * 100, 'Usa hasta dos decimales'),
+    .refine(v => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'Usa hasta dos decimales'),
   poligono: z.custom<PoligonoZona>(esPoligono, 'Dibuja el área de cobertura.'),
   activa: z.boolean().optional(),
 });

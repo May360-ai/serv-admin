@@ -48,21 +48,57 @@ export function EdicionProducto({ producto }: { producto: ItemCatalogo }) {
   </>;
 }
 
-// Nombre, descripción, precio y estado. Los pedidos ya creados conservan su precio.
+// Nombre, código, descripción, precio, medidas y estado. Los pedidos ya creados conservan su precio.
+function leerMedidaOpcional(texto: string, etiqueta: string): number | undefined {
+  if (!texto.trim()) return undefined;
+  const valor = Number(texto);
+  if (!Number.isFinite(valor) || valor <= 0 || valor > 10000) {
+    throw new Error(`${etiqueta} debe ser mayor a 0.`);
+  }
+  return valor;
+}
+
 function DatosProducto({ producto, onGuardado }: { producto: ItemCatalogo; onGuardado: () => Promise<void> }) {
   const [nombre, setNombre] = useState(producto.nombre);
+  const [codigo, setCodigo] = useState(producto.codigo ?? '');
   const [descripcion, setDescripcion] = useState(producto.descripcion ?? '');
   const [precio, setPrecio] = useState(String(Number(producto.precio)));
+  const [pesoKg, setPesoKg] = useState(producto.peso_kg != null ? String(Number(producto.peso_kg)) : '');
+  const [largoCm, setLargoCm] = useState(producto.largo_cm != null ? String(Number(producto.largo_cm)) : '');
+  const [anchoCm, setAnchoCm] = useState(producto.ancho_cm != null ? String(Number(producto.ancho_cm)) : '');
+  const [altoCm, setAltoCm] = useState(producto.alto_cm != null ? String(Number(producto.alto_cm)) : '');
   const [activo, setActivo] = useState(producto.activo !== false);
   const guardar = useMutation({ mutationFn: async () => {
     const valor = Number(precio);
-    if (!Number.isFinite(valor) || valor < 0 || Math.round(valor * 100) !== valor * 100) throw new Error('Indica un precio con hasta dos decimales.');
-    await apiClient.patch(`/api/items/${producto.id}`, { nombre: nombre.trim(), descripcion: descripcion.trim() || null, precio: valor, activo });
+    if (!Number.isFinite(valor) || valor < 0 || Math.abs(valor * 100 - Math.round(valor * 100)) >= 1e-6) throw new Error('Indica un precio con hasta dos decimales.');
+    const peso_kg = leerMedidaOpcional(pesoKg, 'El peso (kg)');
+    const largo_cm = leerMedidaOpcional(largoCm, 'El largo (cm)');
+    const ancho_cm = leerMedidaOpcional(anchoCm, 'El ancho (cm)');
+    const alto_cm = leerMedidaOpcional(altoCm, 'El alto (cm)');
+    const codigoLimpio = codigo.trim();
+    await apiClient.patch(`/api/items/${producto.id}`, {
+      nombre: nombre.trim(),
+      ...(codigoLimpio ? { codigo: codigoLimpio } : producto.codigo ? { codigo: null } : {}),
+      descripcion: descripcion.trim() || null,
+      precio: valor,
+      ...(peso_kg !== undefined ? { peso_kg } : producto.peso_kg != null ? { peso_kg: null } : {}),
+      ...(largo_cm !== undefined ? { largo_cm } : producto.largo_cm != null ? { largo_cm: null } : {}),
+      ...(ancho_cm !== undefined ? { ancho_cm } : producto.ancho_cm != null ? { ancho_cm: null } : {}),
+      ...(alto_cm !== undefined ? { alto_cm } : producto.alto_cm != null ? { alto_cm: null } : {}),
+      activo,
+    });
   }, onSuccess: onGuardado });
   return <form className="mb-4 space-y-3 border-b pb-3" onSubmit={e => { e.preventDefault(); guardar.mutate(); }}>
     <label className="block">Nombre<Input value={nombre} minLength={2} maxLength={150} required disabled={guardar.isPending} onChange={e => setNombre(e.target.value)} /></label>
+    <label className="block">Código / SKU<Input value={codigo} maxLength={50} disabled={guardar.isPending} onChange={e => setCodigo(e.target.value)} /></label>
     <label className="block">Descripción<Input value={descripcion} maxLength={2000} disabled={guardar.isPending} onChange={e => setDescripcion(e.target.value)} /></label>
     <label className="block">Precio base<Input type="number" value={precio} min={0} step="0.01" required disabled={guardar.isPending} onChange={e => setPrecio(e.target.value)} /></label>
+    <div className="grid grid-cols-2 gap-2">
+      <label className="block text-sm">Peso (kg)<Input type="number" value={pesoKg} min="0.01" step="0.01" disabled={guardar.isPending} onChange={e => setPesoKg(e.target.value)} /></label>
+      <label className="block text-sm">Largo (cm)<Input type="number" value={largoCm} min="0.1" step="0.1" disabled={guardar.isPending} onChange={e => setLargoCm(e.target.value)} /></label>
+      <label className="block text-sm">Ancho (cm)<Input type="number" value={anchoCm} min="0.1" step="0.1" disabled={guardar.isPending} onChange={e => setAnchoCm(e.target.value)} /></label>
+      <label className="block text-sm">Alto (cm)<Input type="number" value={altoCm} min="0.1" step="0.1" disabled={guardar.isPending} onChange={e => setAltoCm(e.target.value)} /></label>
+    </div>
     <label className="flex items-center gap-2"><input type="checkbox" checked={activo} disabled={guardar.isPending} onChange={e => setActivo(e.target.checked)} />Disponible en el catálogo</label>
     {guardar.isError && <p role="alert">{guardar.error.message}</p>}{guardar.isSuccess && <p role="status">Producto actualizado.</p>}
     <Button type="submit" isLoading={guardar.isPending}>Guardar datos</Button>

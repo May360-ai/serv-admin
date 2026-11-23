@@ -197,7 +197,7 @@ function uiSetup(t, rol = 'cliente') {
   const state = [];
   const actor = { ...usuario, rol };
   const load = loader({
-    react: { ...React, useCallback: fn => fn, useMemo: factory => memo ?? (memo = factory()), useState: initial => {
+    react: { ...React, useCallback: fn => fn, useSyncExternalStore: (_suscribir, leer) => leer(), useMemo: factory => memo ?? (memo = factory()), useState: initial => {
       const index = cursor++; if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial;
       return [state[index], value => { state[index] = value; }];
     } },

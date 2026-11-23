@@ -4,16 +4,19 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiClient } from '@/lib/api-client';
+import { zonasService } from '@/services/zonas.service';
 import { useAuthStore } from '@/store/auth.store';
 import { esAdministrador } from '@/types/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 const clientesSchema = z.object({ data: z.array(z.object({
   id: z.string(), nombre: z.string(), apellido: z.string().nullable(), email: z.string(),
   telefono: z.string().nullable(), estado: z.enum(['activo', 'inactivo']), fecha_registro: z.string().nullable(),
   pedidos: z.number().int().nonnegative(),
+  zonas: z.array(z.object({ id: z.string(), nombre: z.string() })).optional(),
 })) });
 
 export default function AdminClientesPage() {
@@ -22,13 +25,22 @@ export default function AdminClientesPage() {
   const client = useQueryClient();
   const [borrador, setBorrador] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [zonaId, setZonaId] = useState('');
+
+  const zonasConsulta = useQuery({
+    queryKey: ['zonas-filtro-clientes'],
+    enabled: permitido,
+    queryFn: zonasService.listarZonas,
+    staleTime: 300_000,
+  });
+
   const consulta = useQuery({
-    queryKey: ['admin-clientes', busqueda],
+    queryKey: ['admin-clientes', busqueda, zonaId],
     enabled: permitido,
     queryFn: async ({ signal }) => clientesSchema.parse((await apiClient.get<unknown>('/api/clientes', {
-      params: busqueda ? { busqueda } : {}, signal })).data).data,
+      params: { ...(busqueda ? { busqueda } : {}), ...(zonaId ? { zona_id: zonaId } : {}) }, signal })).data).data,
   });
-  const paginado = usePaginacion(consulta.data ?? [], busqueda, 20);
+  const paginado = usePaginacion(consulta.data ?? [], `${busqueda}:${zonaId}`, 20);
   const cambiarEstado = useMutation({
     mutationFn: async ({ id, estado }: { id: string; estado: 'activo' | 'inactivo' }) => {
       await apiClient.patch(`/api/clientes/${id}/estado`, { estado });
@@ -42,8 +54,12 @@ export default function AdminClientesPage() {
       <h1 className="text-2xl font-bold">Clientes</h1>
       <p className="text-sm text-muted-foreground">Consulta cuentas de cliente y suspende el acceso cuando sea necesario. Una cuenta suspendida no puede iniciar sesión ni crear pedidos.</p>
     </div>
-    <form className="flex max-w-lg gap-2" onSubmit={e => { e.preventDefault(); setBusqueda(borrador.trim()); }}>
-      <Input aria-label="Buscar cliente" placeholder="Nombre, apellido o correo" value={borrador} onChange={e => setBorrador(e.target.value)} />
+    <form className="flex flex-col sm:flex-row max-w-2xl gap-2" onSubmit={e => { e.preventDefault(); setBusqueda(borrador.trim()); }}>
+      <Input aria-label="Buscar cliente" placeholder="Nombre, apellido, correo o teléfono" value={borrador} onChange={e => setBorrador(e.target.value)} />
+      <Select aria-label="Filtrar por zona" value={zonaId} onChange={e => setZonaId(e.target.value)} className="sm:w-52">
+        <option value="">Todas las zonas</option>
+        {(zonasConsulta.data ?? []).map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
+      </Select>
       <Button type="submit" variant="outline">Buscar</Button>
     </form>
     {consulta.isLoading && <p role="status">Consultando clientes…</p>}
@@ -54,11 +70,12 @@ export default function AdminClientesPage() {
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left"><tr>
-          <th className="p-3">Cliente</th><th className="p-3">Contacto</th><th className="p-3">Pedidos</th><th className="p-3">Estado</th><th className="p-3"><span className="sr-only">Acciones</span></th>
+          <th className="p-3">Cliente</th><th className="p-3">Contacto</th><th className="p-3">Zonas</th><th className="p-3">Pedidos</th><th className="p-3">Estado</th><th className="p-3"><span className="sr-only">Acciones</span></th>
         </tr></thead>
         <tbody>{paginado.datos.map(c => <tr key={c.id} className="border-t">
           <td className="p-3 font-medium">{c.nombre} {c.apellido}</td>
           <td className="p-3 break-all">{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</td>
+          <td className="p-3">{c.zonas?.length ? c.zonas.map(z => z.nombre).join(', ') : 'Sin zona'}</td>
           <td className="p-3">{c.pedidos}</td>
           <td className="p-3">{c.estado === 'activo' ? 'Activa' : 'Suspendida'}</td>
           <td className="p-3 text-right"><Button size="sm" variant="outline" disabled={cambiarEstado.isPending}

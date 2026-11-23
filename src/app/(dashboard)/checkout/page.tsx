@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -32,6 +32,8 @@ import { zonasService } from '@/services/zonas.service';
 import { type MetodoPago } from '@/services/pagos.service';
 import { direccionesService } from '@/services/direcciones.service';
 import { getFechaHoy } from '@/features/despacho/despacho.store';
+
+const sinSuscripcion = () => () => {};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -68,7 +70,8 @@ export default function CheckoutPage() {
   const zonaEntrega = zonas.data?.find(z => z.id === zonaEntregaId);
   const costoEnvio = items.length === 0 ? 0 : zonaEntrega?.costo_envio ?? obtenerCostoEnvio();
   const total = subtotal + costoEnvio;
-  const hoy = getFechaHoy();
+  // La fecha mínima se calcula en el navegador: en el prerender no hay "hoy" estable.
+  const hoy = useSyncExternalStore(sinSuscripcion, getFechaHoy, () => '');
 
   const usarDireccionGuardada = (id: string) => {
     const guardada = guardadas.data?.find(d => String(d.id) === id);

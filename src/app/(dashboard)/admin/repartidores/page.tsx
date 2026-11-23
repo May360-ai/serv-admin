@@ -8,16 +8,32 @@ import { useAuthStore } from '@/store/auth.store';
 import { getFechaHoy } from '@/features/despacho/despacho.store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ErrorHttp } from '@/lib/error-http';
 import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 
 const repartidoresSchema = z.object({ data: z.array(z.object({
   id: z.number().int(), nombre: z.string(), apellido: z.string().nullable(),
-  email: z.string(), telefono: z.string().nullable(), vehiculo: z.string().nullable(),
+  email: z.string(), telefono: z.string().nullable(), cedula: z.string().nullable().optional(),
+  vehiculo: z.string().nullable(), capacidad_maxima: z.number().int().nullable().optional(),
   estado: z.enum(['activo', 'inactivo']),
   calificacion_promedio: z.number().nullable().optional(), cantidad_resenas: z.number().optional(),
   rutas: z.array(z.object({ id: z.string(), estado: z.string() })),
 })) });
+
+function construirPayloadRepartidor(form: HTMLFormElement, esEdicion: boolean) {
+  const raw = Object.fromEntries(new FormData(form));
+  const payload: Record<string, unknown> = { ...raw };
+  const cedula = typeof raw.cedula === 'string' ? raw.cedula.trim() : '';
+  if (cedula) payload.cedula = cedula;
+  else if (esEdicion) payload.cedula = null;
+  else delete payload.cedula;
+
+  const capTexto = typeof raw.capacidad_maxima === 'string' ? raw.capacidad_maxima.trim() : '';
+  if (capTexto) payload.capacidad_maxima = Number(capTexto);
+  else if (esEdicion) payload.capacidad_maxima = null;
+  else delete payload.capacidad_maxima;
+
+  return payload;
+}
 
 export default function AdminRepartidoresPage() {
   return <Suspense fallback={<p role="status">Cargando gestión de repartidores…</p>}><GestionRepartidores /></Suspense>;
@@ -46,13 +62,13 @@ function GestionRepartidores() {
   };
   const crear = useMutation({
     mutationFn: async (form: HTMLFormElement) => {
-      await apiClient.post('/api/repartidores', Object.fromEntries(new FormData(form)));
+      await apiClient.post('/api/repartidores', construirPayloadRepartidor(form, false));
     },
     onSuccess: () => { setFormulario(false); actualizar(); },
   });
   const editar = useMutation({
     mutationFn: async ({ id, form }: { id: number; form: HTMLFormElement }) => {
-      await apiClient.patch(`/api/repartidores/${id}`, Object.fromEntries(new FormData(form)));
+      await apiClient.patch(`/api/repartidores/${id}`, construirPayloadRepartidor(form, true));
     },
     onSuccess: () => { setEditando(null); actualizar(); },
   });
@@ -79,10 +95,12 @@ function GestionRepartidores() {
         <label>Apellido<Input name="apellido" maxLength={100} autoComplete="family-name" /></label>
         <label>Correo electrónico<Input name="email" type="email" required maxLength={150} autoComplete="email" /></label>
         <label>Teléfono<Input name="telefono" type="tel" maxLength={20} autoComplete="tel" /></label>
+        <label>Cédula<Input name="cedula" maxLength={10} inputMode="numeric" placeholder="1803456787" /></label>
+        <label>Capacidad máxima (pedidos/ruta)<Input name="capacidad_maxima" type="number" min={1} max={20} step={1} placeholder="Según zona" /></label>
         <label>Vehículo<Input name="vehiculo" maxLength={150} /></label>
         <label>Contraseña inicial<Input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" /></label>
       </fieldset>
-      {crear.isError && <p role="alert">{crear.error instanceof ErrorHttp && crear.error.status === 409 ? 'El correo ya está registrado.' : crear.error.message}</p>}
+      {crear.isError && <p role="alert">{crear.error.message}</p>}
       <div className="flex gap-2">
         <Button type="submit" isLoading={crear.isPending}>Registrar</Button>
         <Button type="button" variant="outline" disabled={crear.isPending} onClick={() => setFormulario(false)}>Cancelar</Button>
@@ -102,7 +120,9 @@ function GestionRepartidores() {
         <p className="text-sm">{rep.calificacion_promedio != null ? `${rep.calificacion_promedio.toFixed(1)}/5 · ${rep.cantidad_resenas ?? 0} entregas valoradas` : 'Sin valoraciones de entregas'}</p>
         <p className="break-all text-sm">{rep.email}</p>
         {rep.telefono && <p className="text-sm">{rep.telefono}</p>}
+        {rep.cedula && <p className="text-sm">Cédula: {rep.cedula}</p>}
         {rep.vehiculo && <p className="text-sm">{rep.vehiculo}</p>}
+        <p className="text-sm">Capacidad por salida: {rep.capacidad_maxima != null ? `${rep.capacidad_maxima} pedidos` : 'según zona'}</p>
         <p>{rep.estado === 'inactivo' ? 'Cuenta inactiva'
           : rep.rutas.some(r => r.estado === 'armando' || r.estado === 'en_ruta') ? 'Con una salida abierta en esta fecha'
           : rep.rutas.length ? 'Salidas de esta fecha terminadas; puede recibir otra' : 'Sin salidas en esta fecha'}</p>
@@ -115,6 +135,8 @@ function GestionRepartidores() {
             <label>Nombre<Input name="nombre" defaultValue={rep.nombre} required maxLength={100} /></label>
             <label>Apellido<Input name="apellido" defaultValue={rep.apellido ?? ''} maxLength={100} /></label>
             <label>Teléfono<Input name="telefono" type="tel" defaultValue={rep.telefono ?? ''} maxLength={20} /></label>
+            <label>Cédula<Input name="cedula" defaultValue={rep.cedula ?? ''} maxLength={10} inputMode="numeric" /></label>
+            <label>Capacidad máxima (pedidos/ruta)<Input name="capacidad_maxima" type="number" defaultValue={rep.capacidad_maxima ?? ''} min={1} max={20} step={1} placeholder="Según zona" /></label>
             <label>Vehículo<Input name="vehiculo" defaultValue={rep.vehiculo ?? ''} maxLength={150} /></label>
           </fieldset>
           {editar.isError && <p role="alert">{editar.error.message}</p>}

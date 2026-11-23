@@ -37,8 +37,17 @@ import { Paginacion, usePaginacion } from '@/components/ui/paginacion';
 import { EdicionProducto, ImagenProducto } from '@/components/pedidos/producto-edicion';
 import { ResenasProducto } from '@/components/pedidos/valoraciones';
 
+const medidaOpcionalSchema = z
+  .string()
+  .optional()
+  .refine(
+    (v) => !v?.trim() || (Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) <= 10000),
+    'Debe ser un número mayor a 0'
+  );
+
 const nuevoItemSchema = z.object({
   nombre: z.string().min(2, 'El nombre es obligatorio'),
+  codigo: z.string().max(50, 'Máximo 50 caracteres').optional(),
   descripcion: z.string().optional(),
   categoria_id: z.string().min(1, 'Debes seleccionar una categoría'),
   precio: z
@@ -48,6 +57,10 @@ const nuevoItemSchema = z.object({
     .number({ error: 'Ingresá una cantidad de stock válida' })
     .int()
     .min(0, 'El stock no puede ser negativo'),
+  peso_kg: medidaOpcionalSchema,
+  largo_cm: medidaOpcionalSchema,
+  ancho_cm: medidaOpcionalSchema,
+  alto_cm: medidaOpcionalSchema,
 });
 
 type NuevoItemForm = z.infer<typeof nuevoItemSchema>;
@@ -85,10 +98,15 @@ export default function CatalogoPage() {
   const { mutate: crearItem, isPending } = useMutation({
     mutationFn: async (body: NuevoItemForm) => {
       const payload = {
-        nombre: body.nombre,
+        nombre: body.nombre.trim(),
+        ...(body.codigo?.trim() ? { codigo: body.codigo.trim() } : {}),
         descripcion: body.descripcion,
         precio: body.precio,
         inventario_stock: body.inventario_stock,
+        ...(body.peso_kg?.trim() ? { peso_kg: Number(body.peso_kg) } : {}),
+        ...(body.largo_cm?.trim() ? { largo_cm: Number(body.largo_cm) } : {}),
+        ...(body.ancho_cm?.trim() ? { ancho_cm: Number(body.ancho_cm) } : {}),
+        ...(body.alto_cm?.trim() ? { alto_cm: Number(body.alto_cm) } : {}),
         categoria_id: Number(body.categoria_id),
         es_servicio: false,
       };
@@ -184,6 +202,7 @@ export default function CatalogoPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{prod.nombre}</CardTitle>
+                    {prod.codigo && <p className="text-xs text-muted-foreground">Código: {prod.codigo}</p>}
                     {prod.descripcion && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                         {prod.descripcion}
@@ -205,6 +224,15 @@ export default function CatalogoPage() {
                     {prod.es_servicio ? 'Servicio' : `Stock: ${prod.inventario_stock ?? 0} un.`}
                   </span>
                 </div>
+                {(prod.peso_kg != null || prod.largo_cm != null || prod.ancho_cm != null || prod.alto_cm != null) && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {prod.peso_kg != null ? `Peso: ${Number(prod.peso_kg)} kg` : ''}
+                    {prod.peso_kg != null && (prod.largo_cm != null || prod.ancho_cm != null || prod.alto_cm != null) ? ' · ' : ''}
+                    {(prod.largo_cm != null || prod.ancho_cm != null || prod.alto_cm != null)
+                      ? `Dim: ${prod.largo_cm ?? '-'} x ${prod.ancho_cm ?? '-'} x ${prod.alto_cm ?? '-'} cm`
+                      : ''}
+                  </p>
+                )}
                 {(prod.variaciones_item?.length ?? 0) > 0 && (
                   <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                     {prod.variaciones_item?.map(v => (
@@ -230,17 +258,30 @@ export default function CatalogoPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="prod-nombre">Nombre del Producto *</Label>
-              <Input
-                id="prod-nombre"
-                placeholder="Ramo 12 Rosas Rojas"
-                {...register('nombre')}
-              />
-              {errors.nombre && (
-                <p className="text-xs text-destructive">{errors.nombre.message}</p>
-              )}
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-nombre">Nombre del Producto *</Label>
+                <Input
+                  id="prod-nombre"
+                  placeholder="Ramo 12 Rosas Rojas"
+                  {...register('nombre')}
+                />
+                {errors.nombre && (
+                  <p className="text-xs text-destructive">{errors.nombre.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="prod-codigo">Código / SKU (opcional)</Label>
+                <Input
+                  id="prod-codigo"
+                  placeholder="RAMO-12R"
+                  maxLength={50}
+                  {...register('codigo')}
+                />
+                {errors.codigo && (
+                  <p className="text-xs text-destructive">{errors.codigo.message}</p>
+                )}
+              </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="prod-categoria">Categoría *</Label>
@@ -295,6 +336,29 @@ export default function CatalogoPage() {
                 {errors.inventario_stock && (
                   <p className="text-xs text-destructive">{errors.inventario_stock.message}</p>
                 )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="prod-peso">Peso (kg)</Label>
+                <Input id="prod-peso" type="number" step="0.01" min="0.01" placeholder="0.50" {...register('peso_kg')} />
+                {errors.peso_kg && <p className="text-xs text-destructive">{errors.peso_kg.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="prod-largo">Largo (cm)</Label>
+                <Input id="prod-largo" type="number" step="0.1" min="0.1" placeholder="30" {...register('largo_cm')} />
+                {errors.largo_cm && <p className="text-xs text-destructive">{errors.largo_cm.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="prod-ancho">Ancho (cm)</Label>
+                <Input id="prod-ancho" type="number" step="0.1" min="0.1" placeholder="20" {...register('ancho_cm')} />
+                {errors.ancho_cm && <p className="text-xs text-destructive">{errors.ancho_cm.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="prod-alto">Alto (cm)</Label>
+                <Input id="prod-alto" type="number" step="0.1" min="0.1" placeholder="15" {...register('alto_cm')} />
+                {errors.alto_cm && <p className="text-xs text-destructive">{errors.alto_cm.message}</p>}
               </div>
             </div>
 

@@ -14,8 +14,13 @@ export interface ItemCatalogo {
   proveedor_id: number;
   categoria_id: number;
   nombre: string;
+  codigo?: string | null;
   descripcion: string | null;
   precio: string | number;
+  peso_kg?: string | number | null;
+  largo_cm?: string | number | null;
+  ancho_cm?: string | number | null;
+  alto_cm?: string | number | null;
   imagen_url: string | null;
   es_servicio: boolean;
   duracion_estimada_minutos: number | null;
@@ -57,11 +62,13 @@ export const itemsService = {
     categoria_id?: number;
     proveedor_id?: number;
     es_servicio?: boolean;
+    nombre?: string;
   }): Promise<ItemCatalogo[]> {
     const params = new URLSearchParams();
     if (filtros?.categoria_id) params.set('categoria_id', String(filtros.categoria_id));
     if (filtros?.proveedor_id) params.set('proveedor_id', String(filtros.proveedor_id));
     if (filtros?.es_servicio !== undefined) params.set('es_servicio', String(filtros.es_servicio));
+    if (filtros?.nombre?.trim()) params.set('nombre', filtros.nombre.trim());
 
     const { data } = await apiClient.get<ItemCatalogo[] | { data: ItemCatalogo[] }>(
       `/api/items?${params.toString()}`
@@ -70,6 +77,14 @@ export const itemsService = {
     if (!Array.isArray(data) || data.some(item => !item || !Number.isInteger(item.id) ||
       !Number.isInteger(item.proveedor_id) || typeof item.nombre !== 'string' || typeof item.activo !== 'boolean')) {
       throw new Error('Respuesta de catálogo inesperada');
+    }
+    return data;
+  },
+
+  async obtenerPorId(id: number): Promise<ItemCatalogo> {
+    const { data } = await apiClient.get<ItemCatalogo>(`/api/items/${id}`);
+    if (!data || !Number.isInteger(data.id) || typeof data.nombre !== 'string') {
+      throw new Error('Respuesta de producto inesperada');
     }
     return data;
   },

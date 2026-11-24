@@ -20,7 +20,8 @@ export function EstadoPublicacionTienda() {
     staleTime: 60_000,
   });
   const sucursales = useQuery({
-    queryKey: ['sucursales'],
+    // Clave propia: este esquema descarta zonas y no debe compartir caché con el gestor de sucursales.
+    queryKey: ['sucursales', 'publicacion'],
     enabled: Boolean(proveedorId),
     queryFn: async () => sucursalesSchema.parse((await apiClient.get<unknown>('/api/sucursales')).data).data,
   });

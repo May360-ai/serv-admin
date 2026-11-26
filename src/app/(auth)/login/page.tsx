@@ -60,7 +60,7 @@ export default function LoginPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mb-4">
             <Truck className="h-8 w-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">SERV</h1>
+          <h1 className="text-3xl font-bold text-foreground">SERV-editado</h1>
           <p className="text-muted-foreground text-sm mt-1">Gestión de Entregas y Rutas</p>
         </div>
 

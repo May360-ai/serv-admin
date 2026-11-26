@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright / Lighthouse
+/.features-gen/
+/e2e/.auth/
+/e2e/reporte/
+/e2e/resultados/
+/e2e/lighthouse/resultados/
+/.lighthouseci/
